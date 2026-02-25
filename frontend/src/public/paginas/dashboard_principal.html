@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mi Teleférico - Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-4">
+
+  <div class="w-full max-w-4xl bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl">
+
+    <!-- HEADER -->
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-white">Mi Teleférico</h1>
+      <p class="text-gray-200 mt-2">Panel Principal</p>
+      <p class="text-gray-300 mt-1">Bienvenida: <span id="nombreUsuario"></span></p>
+      <p class="text-gray-300">Rol: <span id="rolUsuario"></span></p>
+    </div>
+
+    <!-- BOTÓN LOGOUT -->
+    <div class="text-right mb-6">
+      <button id="btnLogout"
+        class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg transition">
+        Cerrar Sesión
+      </button>
+    </div>
+
+    <!-- CONTENIDO -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- OPERADOR -->
+      <section data-role="OPERADOR,ADMINISTRADOR"
+        class="bg-white/10 border border-white/20 rounded-xl p-6 text-white">
+        <h3 class="text-xl font-semibold mb-4">Flujo e Incidentes</h3>
+        <div class="space-y-3">
+          <button onclick="location.href='flujo.html'"
+            class="w-full bg-teal-600 hover:bg-teal-700 py-2 rounded-lg">Flujo de Pasajeros</button>
+          <button onclick="location.href='incidentes.html'"
+            class="w-full bg-teal-600 hover:bg-teal-700 py-2 rounded-lg">Registrar Incidente</button>
+        </div>
+      </section>
+
+      <!-- TECNICO -->
+      <section data-role="TECNICO,ADMINISTRADOR"
+        class="bg-white/10 border border-white/20 rounded-xl p-6 text-white">
+        <h3 class="text-xl font-semibold mb-4">Mantenimientos</h3>
+        <div class="space-y-3">
+          <button onclick="location.href='mantenimientos.html'"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 py-2 rounded-lg">Gestionar Mantenimiento</button>
+        </div>
+      </section>
+
+      <!-- SUPERVISOR -->
+      <section data-role="SUPERVISOR,ADMINISTRADOR"
+        class="bg-white/10 border border-white/20 rounded-xl p-6 text-white">
+        <h3 class="text-xl font-semibold mb-4">Gestión Operativa</h3>
+        <div class="space-y-3">
+          <button onclick="location.href='estaciones.html'"
+            class="w-full bg-cyan-600 hover:bg-cyan-700 py-2 rounded-lg">Estaciones</button>
+          <button onclick="location.href='cabinas.html'"
+            class="w-full bg-cyan-600 hover:bg-cyan-700 py-2 rounded-lg">Cabinas</button>
+          <button onclick="location.href='reportes.html'"
+            class="w-full bg-cyan-600 hover:bg-cyan-700 py-2 rounded-lg">Reportes</button>
+        </div>
+      </section>
+
+      <!-- ADMIN -->
+      <section data-role="ADMINISTRADOR"
+        class="bg-white/10 border border-white/20 rounded-xl p-6 text-white">
+        <h3 class="text-xl font-semibold mb-4">Administración</h3>
+        <div class="space-y-3">
+          <button onclick="location.href='usuarios.html'"
+            class="w-full bg-purple-600 hover:bg-purple-700 py-2 rounded-lg">Usuarios</button>
+          <button onclick="location.href='roles.html'"
+            class="w-full bg-purple-600 hover:bg-purple-700 py-2 rounded-lg">Roles</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="../js/dashboard_principal.js"></script>
+</body>
+</html>
