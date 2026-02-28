@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestión de Incidentes - Mi Teleférico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+  </style>
+</head>
+<body class="min-h-screen text-white flex">
+
+  <!-- Menú lateral (igual que en la otra página) -->
+  <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
+    <div class="p-6 border-b border-teal-700/50">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white">MT</div>
+        <div>
+          <h1 class="text-xl font-bold">Mi Teleférico</h1>
+          <p class="text-sm text-teal-300">Panel Operador</p>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-4 py-6 space-y-2">
+      <a href="dashboardOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </a>
+      <a href="dashboardOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+        Mi Estación
+      </a>
+      <a href="paginaOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Registrar Flujo de Pasajeros
+      </a>
+      <a href="paginaIncidentes.html" class="menu-link flex items-center gap-3 px-4 py-3 bg-orange-900/40 rounded-lg font-medium transition text-orange-300">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        Reportar Incidente
+      </a>
+    </nav>
+
+    <div class="p-6 border-t border-teal-700/50 mt-auto">
+      <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/60 hover:bg-red-800/70 rounded-lg text-red-200 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="flex-1 overflow-y-auto">
+
+    <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
+      <div class="max-w-full px-6 py-4 flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Gestión de Incidentes</h1>
+        <div class="flex items-center gap-4">
+          <button class="relative text-teal-200 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">2</span>
+          </button>
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <p class="font-medium">Bienvenid@, <span id="nombreUsuario" class="text-teal-300"></span></p>
+              <p class="text-sm text-teal-300">Rol: Operador - Estación Centro</p>
+            </div>
+            <div class="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center font-bold">OP</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="p-6 max-w-7xl mx-auto">
+
+      <!-- Barra de búsqueda y botón nuevo -->
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+        <input type="text" placeholder="Buscar incidentes..." class="w-full md:w-96 bg-white/10 border border-white/20 rounded-xl px-5 py-3 focus:outline-none focus:border-teal-400 placeholder-gray-400">
+        <button class="w-full md:w-auto bg-orange-600 hover:bg-orange-500 px-6 py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
+          <span>+ Nuevo Incidente</span>
+        </button>
+      </div>
+
+      <!-- Tarjetas resumen -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Total Incidentes</p>
+          <p class="text-3xl font-bold mt-1">24</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Abiertos</p>
+          <p class="text-3xl font-bold mt-1">5</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">En Proceso</p>
+          <p class="text-3xl font-bold mt-1">3</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Resueltos Hoy</p>
+          <p class="text-3xl font-bold mt-1">6</p>
+        </div>
+      </div>
+
+      <!-- Lista de incidentes recientes -->
+      <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+        <h2 class="text-2xl font-bold mb-6">Incidentes Recientes</h2>
+        <div class="space-y-4">
+          <div class="bg-white/5 border border-yellow-600/40 rounded-xl p-5 hover:bg-white/10 transition">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="text-yellow-400 text-xl">⚠</span>
+                  <h3 class="font-semibold">Retraso en Estación Norte #INC001</h3>
+                </div>
+                <p class="text-sm text-gray-400 mt-1">Estación Norte • 08:45 AM • María González</p>
+              </div>
+              <div class="text-right">
+                <span class="px-3 py-1 bg-yellow-800/50 text-yellow-300 rounded-full text-sm">Media</span>
+                <p class="text-xs text-gray-400 mt-2">En Proceso</p>
+              </div>
+            </div>
+            <div class="mt-3 flex gap-4 text-sm">
+              <button class="text-teal-300 hover:text-teal-200">Ver Detalles</button>
+              <button class="text-teal-300 hover:text-teal-200">Actualizar</button>
+            </div>
+          </div>
+
+          <div class="bg-white/5 border border-red-600/40 rounded-xl p-5 hover:bg-white/10 transition">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="text-red-400 text-xl">⚠</span>
+                  <h3 class="font-semibold">Cabina 15 sin energía #INC002</h3>
+                </div>
+                <p class="text-sm text-gray-400 mt-1">Sector Centro • 07:30 AM • Roberto Vargas</p>
+              </div>
+              <div class="text-right">
+                <span class="px-3 py-1 bg-red-800/50 text-red-300 rounded-full text-sm">Alta</span>
+                <p class="text-xs text-gray-400 mt-2">Resuelto</p>
+              </div>
+            </div>
+            <div class="mt-3 flex gap-4 text-sm">
+              <button class="text-teal-300 hover:text-teal-200">Ver Detalles</button>
+              <button class="text-teal-300 hover:text-teal-200">Actualizar</button>
+            </div>
+          </div>
+
+          <div class="bg-white/5 border border-blue-600/40 rounded-xl p-5 hover:bg-white/10 transition">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="text-blue-400 text-xl">△</span>
+                  <h3 class="font-semibold">Afluencia excesiva #INC003</h3>
+                </div>
+                <p class="text-sm text-gray-400 mt-1">Estación Centro • 10:15 AM • Carlos Ramírez</p>
+              </div>
+              <div class="text-right">
+                <span class="px-3 py-1 bg-blue-800/50 text-blue-300 rounded-full text-sm">Baja</span>
+                <p class="text-xs text-gray-400 mt-2">Abierto</p>
+              </div>
+            </div>
+            <div class="mt-3 flex gap-4 text-sm">
+              <button class="text-teal-300 hover:text-teal-200">Ver Detalles</button>
+              <button class="text-teal-300 hover:text-teal-200">Actualizar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script src="../js/dashboardOperador.js"></script>
+</body>
+</html>

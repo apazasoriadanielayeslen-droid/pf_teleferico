@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registrar Flujo de Pasajeros - Mi Teleférico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+  </style>
+</head>
+<body class="min-h-screen text-white flex">
+
+  <!-- Menú lateral -->
+  <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
+    <div class="p-6 border-b border-teal-700/50">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white">MT</div>
+        <div>
+          <h1 class="text-xl font-bold">Mi Teleférico</h1>
+          <p class="text-sm text-teal-300">Panel Operador</p>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-4 py-6 space-y-2">
+      <a href="dashboardOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </a>
+      <a href="dashboardOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+        Mi Estación
+      </a>
+      <a href="paginaOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 bg-teal-700/60 rounded-lg font-medium transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Registrar Flujo de Pasajeros
+      </a>
+      <a href="paginaIncidentes.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition text-orange-400 hover:text-orange-300 hover:bg-orange-900/30">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        Reportar Incidente
+      </a>
+    </nav>
+
+    <div class="p-6 border-t border-teal-700/50 mt-auto">
+      <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/60 hover:bg-red-800/70 rounded-lg text-red-200 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="flex-1 overflow-y-auto">
+
+    <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
+      <div class="max-w-full px-6 py-4 flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Flujo de Pasajeros</h1>
+        <div class="flex items-center gap-4">
+          <button class="relative text-teal-200 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">3</span>
+          </button>
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <p class="font-medium">Bienvenid@, <span id="nombreUsuario" class="text-teal-300"></span></p>
+              <p class="text-sm text-teal-300">Rol: Operador - Estación Centro</p>
+            </div>
+            <div class="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center font-bold">OP</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="p-6 max-w-7xl mx-auto">
+
+      <!-- Tarjetas de resumen -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Total Hoy</p>
+          <p class="text-3xl font-bold mt-1">8,542</p>
+          <p class="text-xs text-green-400 mt-1">+15% vs ayer</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Última Hora</p>
+          <p class="text-3xl font-bold mt-1">342</p>
+          <p class="text-xs text-green-400 mt-1">10:00 - 11:00</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Pico del Día</p>
+          <p class="text-3xl font-bold mt-1">687</p>
+          <p class="text-xs text-orange-400 mt-1">09:00 AM</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Promedio/Hora</p>
+          <p class="text-3xl font-bold mt-1">448</p>
+          <p class="text-xs text-purple-400 mt-1">Últimas 5 horas</p>
+        </div>
+      </div>
+
+      <!-- Formulario de registro -->
+      <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-6">Registrar Nuevo Flujo</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+          <div>
+            <label class="block text-sm text-gray-300 mb-2">Estación</label>
+            <select class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
+              <option>Estación Centro</option>
+              <option>Estación Norte</option>
+              <option>Estación Sur</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-300 mb-2">Pasajeros Entrantes</label>
+            <input type="number" min="0" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-300 mb-2">Pasajeros Salientes</label>
+            <input type="number" min="0" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
+          </div>
+          <div>
+            <button class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-medium transition mt-6">
+              + Registrar Flujo
+            </button>
+          </div>
+        </div>
+        <p class="text-sm text-gray-400 mt-3 text-right">Hora actual: 11:15 AM</p>
+      </div>
+
+      <!-- Historial -->
+      <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+        <h2 class="text-2xl font-bold mb-6">Historial de Flujo - Hoy</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-white/20">
+                <th class="py-3 px-4">Hora</th>
+                <th class="py-3 px-4">Entrantes</th>
+                <th class="py-3 px-4">Salientes</th>
+                <th class="py-3 px-4">Neto</th>
+                <th class="py-3 px-4">Tendencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-white/10 hover:bg-white/5">
+                <td class="py-4 px-4">07:00</td>
+                <td class="py-4 px-4">245</td>
+                <td class="py-4 px-4">89</td>
+                <td class="py-4 px-4">+156</td>
+                <td class="py-4 px-4 text-green-400">↑ Ausencia alta</td>
+              </tr>
+              <tr class="border-b border-white/10 hover:bg-white/5">
+                <td class="py-4 px-4">08:00</td>
+                <td class="py-4 px-4">512</td>
+                <td class="py-4 px-4">167</td>
+                <td class="py-4 px-4">+345</td>
+                <td class="py-4 px-4 text-green-400">↑ Ausencia alta</td>
+              </tr>
+              <tr class="hover:bg-white/5">
+                <td class="py-4 px-4">09:00</td>
+                <td class="py-4 px-4">687</td>
+                <td class="py-4 px-4">234</td>
+                <td class="py-4 px-4">+453</td>
+                <td class="py-4 px-4 text-green-400">↑ Ausencia alta</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script src="../js/dashboardOperador.js"></script>
+</body>
+</html>
