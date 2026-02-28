@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Técnico - Mi Teleférico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-4">
+
+  <div class="w-full max-w-3xl bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl text-white">
+
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold">Mi Teleférico - Técnico</h1>
+      <p class="text-gray-200 mt-2">Gestión de Mantenimientos</p>
+      <p class="text-gray-300 mt-1">Bienvenid@ <span id="nombreUsuario"></span></p>
+    </div>
+
+    <div class="text-right mb-8">
+      <button id="btnLogout" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+        Cerrar Sesión
+      </button>
+    </div>
+
+    <section class="bg-white/10 border border-white/20 rounded-xl p-6">
+      <h3 class="text-xl font-semibold mb-4">Mantenimientos</h3>
+      <div class="space-y-4">
+        <button onclick="location.href='mantenimientos.html'" class="w-full bg-emerald-600 hover:bg-emerald-700 py-4 rounded-lg font-medium text-lg">
+          Gestionar Mantenimientos
+        </button>
+        <!-- Puedes agregar más botones aquí en el futuro, ej: ver historial, pendientes, etc. -->
+      </div>
+    </section>
+
+  </div>
+
+  <script src="../js/dashboard_comun.js"></script>
+</body>
+</html>

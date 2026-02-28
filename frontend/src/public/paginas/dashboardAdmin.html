@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Administrador - Mi Teleférico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-4">
+
+  <div class="w-full max-w-4xl bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl text-white">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold">Mi Teleférico - Administrador</h1>
+      <p class="text-gray-200 mt-2">Panel de Administración</p>
+      <p class="text-gray-300 mt-1">Bienvenid@ <span id="nombreUsuario"></span></p>
+      <p class="text-gray-300">Rol: Administrador</p>
+    </div>
+
+    <!-- Botón Logout -->
+    <div class="text-right mb-8">
+      <button id="btnLogout" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+        Cerrar Sesión
+      </button>
+    </div>
+
+    <!-- Secciones -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- Administración (exclusivo admin) -->
+      <section class="bg-white/10 border border-white/20 rounded-xl p-6">
+        <h3 class="text-xl font-semibold mb-4">Administración del Sistema</h3>
+        <div class="space-y-3">
+          <button onclick="location.href='usuarios.html'" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-lg font-medium">
+            Gestionar Usuarios
+          </button>
+          <button onclick="location.href='roles.html'" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-lg font-medium">
+            Gestionar Roles
+          </button>
+        </div>
+      </section>
+
+      <!-- Gestión Operativa (heredada de supervisor) -->
+      <section class="bg-white/10 border border-white/20 rounded-xl p-6">
+        <h3 class="text-xl font-semibold mb-4">Gestión Operativa</h3>
+        <div class="space-y-3">
+          <button onclick="location.href='estaciones.html'" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-lg font-medium">
+            Estaciones
+          </button>
+          <button onclick="location.href='cabinas.html'" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-lg font-medium">
+            Cabinas
+          </button>
+          <button onclick="location.href='reportes.html'" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-lg font-medium">
+            Reportes Generales
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+
+  <script src="../js/dashboard_comun.js"></script> <!-- o uno específico si prefieres -->
+</body>
+</html>

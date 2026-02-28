@@ -1,31 +1,63 @@
+// dashboard_principal.js
+
 document.addEventListener('DOMContentLoaded', () => {
+  console.log("Intentando leer sesión del usuario...");
 
-  const user = JSON.parse(localStorage.getItem('user'));
+  const userStr = localStorage.getItem('user');
 
-  if (!user) {
+  if (!userStr) {
+    console.warn("No hay usuario guardado en localStorage");
     window.location.href = 'login.html';
     return;
   }
 
-  const rol = user.rol_nombre;
-
-  document.getElementById('nombreUsuario').textContent = user.nombres;
-  document.getElementById('rolUsuario').textContent = rol;
-
-  // Ocultar secciones según rol
-  document.querySelectorAll('[data-role]').forEach(section => {
-    const rolesPermitidos = section.dataset.role.split(',');
-
-    if (!rolesPermitidos.includes(rol)) {
-      section.style.display = 'none';
-    }
-  });
-
-  // Logout
-  document.getElementById('btnLogout').addEventListener('click', () => {
-    localStorage.removeItem('token');
+  let user;
+  try {
+    user = JSON.parse(userStr);
+    console.log("Usuario encontrado:", user);
+  } catch (err) {
+    console.error("Error al parsear usuario:", err);
     localStorage.removeItem('user');
     window.location.href = 'login.html';
-  });
+    return;
+  }
 
+  const rol = (user.rol_nombre || '').trim().toUpperCase();
+
+  if (!rol) {
+    console.warn("No se encontró rol_nombre en el usuario", user);
+    window.location.href = 'login.html';
+    return;
+  }
+
+  console.log("Rol detectado:", rol);
+
+  let destino = 'login.html'; // seguridad
+
+  switch (rol) {
+    case 'OPERADOR':
+      destino = 'dashboardOperador.html';
+      break;
+    case 'TECNICO':
+    case 'TÉCNICO':
+      destino = 'dashboardTecnico.html';
+      break;
+    case 'SUPERVISOR':
+      destino = 'dashboardSupervisor.html';
+      break;
+    case 'ADMINISTRADOR':
+    case 'ADMIN':
+      destino = 'dashboardAdmin.html';
+      break;
+    default:
+      console.warn("Rol desconocido:", rol);
+      destino = 'login.html';
+  }
+
+  console.log("Redirigiendo hacia:", destino);
+
+  // Pequeño retraso para ver logs si es necesario
+  setTimeout(() => {
+    window.location.href = destino;
+  }, 400);
 });

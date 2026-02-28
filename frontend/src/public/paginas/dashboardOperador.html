@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Operador - Mi Teleférico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-4">
+
+  <div class="w-full max-w-4xl bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl text-white">
+
+    <!-- Encabezado -->
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold">Mi Teleférico - Operador</h1>
+      <p class="text-gray-200 mt-2">Flujo de Pasajeros e Incidentes</p>
+      <p class="text-gray-300 mt-4 text-xl">
+        Bienvenid@ <span id="nombreUsuario" class="font-semibold text-teal-300"></span>
+      </p>
+    </div>
+
+    <!-- Botón Cerrar Sesión -->
+    <div class="text-right mb-8">
+      <button id="btnLogout"
+              class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+        Cerrar Sesión
+      </button>
+    </div>
+
+    <!-- Contenido -->
+    <section class="bg-white/10 border border-white/20 rounded-xl p-6">
+      <h3 class="text-2xl font-semibold mb-6 text-center md:text-left">Flujo e Incidentes</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <button onclick="location.href='paginaOperador.html'"
+                class="w-full bg-teal-600 hover:bg-teal-700 py-5 rounded-xl font-medium text-lg transition shadow-md">
+          Flujo de Pasajeros
+        </button>
+        <button onclick="location.href='incidentes.html'"
+                class="w-full bg-teal-600 hover:bg-teal-700 py-5 rounded-xl font-medium text-lg transition shadow-md">
+          Registrar Incidente
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ÚNICO SCRIPT que incluye nombre + logout + cualquier lógica futura -->
+  <script src="../js/dashboardOperador.js"></script>
+
+</body>
+</html>
