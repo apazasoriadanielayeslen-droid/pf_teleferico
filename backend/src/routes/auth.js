@@ -7,13 +7,10 @@ const router = express.Router();
 // IMPORTA AMBOS CONTROLADORES (los dos que tienes)
 // ────────────────────────────────────────────────
 const registroCtrl = require('../controllers/registroController');
-const authCtrl     = require('../controllers/authController');   // ← esta línea faltaba
+const authCtrl     = require('../controllers/loginController');
 
-// Rutas de REGISTRO y ROLES (usando el controlador de registro)
 router.get('/roles',    registroCtrl.getRoles);
 router.post('/registro', registroCtrl.register);
-
-// Rutas de LOGIN (usando el controlador de autenticación)
-router.post('/login',   authCtrl.login);          // ← ahora sí existe authCtrl
+router.post('/login',   authCtrl.login);        
 
 module.exports = router;
