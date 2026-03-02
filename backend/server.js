@@ -7,6 +7,8 @@ const db = require("./src/config/conexion");
 
 // Importamos rutas **después** de express, pero antes de usar app
 const authRoutes = require('./src/routes/auth');
+const supervisorRoutes = require('./src/routes/supervisor');
+const maintRoutes = require('./src/routes/maintenance');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +19,8 @@ app.use(express.json());
 
 // Rutas
 app.use('/api', authRoutes);
+app.use('/api/supervisor', supervisorRoutes);
+app.use('/api/supervisor/maint', maintRoutes);
 
 // Ruta de prueba / bienvenida
 app.get("/", (req, res) => {

@@ -38,13 +38,18 @@ async function handleLogin(e) {
 
             mostrarMensaje('success', '¡Bienvenid@! Redirigiendo...');
 
-            // Aquí defines a qué página redirigir según el rol (opcional)
+            // redirigir según rol
             setTimeout(() => {
-                // Ejemplo: redirigir según rol (puedes mejorarlo después)
-                if (data.user.rol_nombre === 'ADMINISTRADOR') {
-                    window.location.href = './dashboard_principal.html'; // página principal para admin
-                } else {
-                    window.location.href = './dashboard_principal.html'; // página principal para todos
+                switch (data.user.rol_nombre) {
+                    case 'SUPERVISOR':
+                        window.location.href = './dashboardSupervisor.html';
+                        break;
+                    case 'ADMINISTRADOR':
+                    case 'TECNICO':
+                    case 'OPERADOR':
+                    default:
+                        window.location.href = './dashboard_principal.html';
+                        break;
                 }
             }, 1500);
         } else {
