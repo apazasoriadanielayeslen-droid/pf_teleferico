@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 const supervisorCtrl = require('../controllers/supervisorController');
-const authMiddleware = require('../middleware/authMiddleware');
+const { verificarToken } = require('../middlewares/mauth');
 
 // todas las rutas bajo /api/supervisor deben llevar token válido
-router.get('/overview', authMiddleware.verifyToken, supervisorCtrl.getOverview);
-router.get('/stations', authMiddleware.verifyToken, supervisorCtrl.getStations);
+router.get('/overview', verificarToken, supervisorCtrl.getOverview);
+router.get('/stations', verificarToken, supervisorCtrl.getStations);
 
 module.exports = router;

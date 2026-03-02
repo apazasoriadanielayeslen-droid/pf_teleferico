@@ -1,5 +1,5 @@
 // src/config/conexion.js
-const mysql = require('mysql2/promise');  // ← usa mysql2/promise directamente
+const mysql = require('mysql2/promise'); 
 require('dotenv').config();
 
 const pool = mysql.createPool({

@@ -32,7 +32,7 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
         Mi Estación
       </a>
-      <a href="paginaOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 bg-teal-700/60 rounded-lg font-medium transition">
+      <a href="paginapasajeros.html" class="menu-link flex items-center gap-3 px-4 py-3 bg-teal-700/60 rounded-lg font-medium transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         Registrar Flujo de Pasajeros
       </a>
@@ -77,24 +77,24 @@
       <!-- Tarjetas de resumen -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Total Hoy</p>
-          <p class="text-3xl font-bold mt-1">8,542</p>
-          <p class="text-xs text-green-400 mt-1">+15% vs ayer</p>
+          <p class="text-sm text-gray-300">Total Hoy (entrantes)</p>
+          <p id="totalHoyValor" class="text-3xl font-bold mt-1"></p>
+          <p id="totalHoyPorc" class="text-xs text-green-400 mt-1">+0% vs ayer</p>
         </div>
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Última Hora</p>
-          <p class="text-3xl font-bold mt-1">342</p>
-          <p class="text-xs text-green-400 mt-1">10:00 - 11:00</p>
+          <p class="text-sm text-gray-300">Última Hora (entrantes)</p>
+          <p id="ultimaHoraValor" class="text-3xl font-bold mt-1">0</p>
+          <p id="ultimaHoraRango" class="text-xs text-green-400 mt-1">00:00 - 00:00</p>
         </div>
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Pico del Día</p>
-          <p class="text-3xl font-bold mt-1">687</p>
-          <p class="text-xs text-orange-400 mt-1">09:00 AM</p>
+          <p class="text-sm text-gray-300">Pico del Día (entrantes)</p>
+          <p id="picoValor" class="text-3xl font-bold mt-1">0</p>
+          <p id="picoHora" class="text-xs text-orange-400 mt-1">00:00 AM</p>
         </div>
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Promedio/Hora</p>
-          <p class="text-3xl font-bold mt-1">448</p>
-          <p class="text-xs text-purple-400 mt-1">Últimas 5 horas</p>
+          <p class="text-sm text-gray-300">Promedio/Hora (últ. 5 h)</p>
+          <p id="promedioValor" class="text-3xl font-bold mt-1">0</p>
+          <p class="text-xs text-purple-400 mt-1">entrantes por hora</p>
         </div>
       </div>
 
@@ -104,27 +104,25 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
           <div>
             <label class="block text-sm text-gray-300 mb-2">Estación</label>
-            <select class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
-              <option>Estación Centro</option>
-              <option>Estación Norte</option>
-              <option>Estación Sur</option>
+            <select id="estacionSelect" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
+              <option value="">-- Seleccione una estación --</option>
             </select>
           </div>
           <div>
             <label class="block text-sm text-gray-300 mb-2">Pasajeros Entrantes</label>
-            <input type="number" min="0" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
+            <input type="number" id="entrantesInput" min="0" max="1500" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
           </div>
           <div>
             <label class="block text-sm text-gray-300 mb-2">Pasajeros Salientes</label>
-            <input type="number" min="0" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
+            <input type="number" id="salientesInput" min="0" max="1500" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
           </div>
           <div>
-            <button class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-medium transition mt-6">
+            <button id="registrarBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-medium transition mt-6">
               + Registrar Flujo
             </button>
           </div>
         </div>
-        <p class="text-sm text-gray-400 mt-3 text-right">Hora actual: 11:15 AM</p>
+        <p class="text-sm text-gray-400 mt-3 text-right">Hora actual: <span id="horaActual"></span></p>
       </div>
 
       <!-- Historial -->
@@ -141,28 +139,8 @@
                 <th class="py-3 px-4">Tendencia</th>
               </tr>
             </thead>
-            <tbody>
-              <tr class="border-b border-white/10 hover:bg-white/5">
-                <td class="py-4 px-4">07:00</td>
-                <td class="py-4 px-4">245</td>
-                <td class="py-4 px-4">89</td>
-                <td class="py-4 px-4">+156</td>
-                <td class="py-4 px-4 text-green-400">↑ Ausencia alta</td>
-              </tr>
-              <tr class="border-b border-white/10 hover:bg-white/5">
-                <td class="py-4 px-4">08:00</td>
-                <td class="py-4 px-4">512</td>
-                <td class="py-4 px-4">167</td>
-                <td class="py-4 px-4">+345</td>
-                <td class="py-4 px-4 text-green-400">↑ Ausencia alta</td>
-              </tr>
-              <tr class="hover:bg-white/5">
-                <td class="py-4 px-4">09:00</td>
-                <td class="py-4 px-4">687</td>
-                <td class="py-4 px-4">234</td>
-                <td class="py-4 px-4">+453</td>
-                <td class="py-4 px-4 text-green-400">↑ Ausencia alta</td>
-              </tr>
+            <tbody id="historialTbody">
+              <!-- Las filas se agregan con JavaScript -->
             </tbody>
           </table>
         </div>
@@ -171,8 +149,7 @@
     </div>
   </main>
 
-</div>
-
 <script src="../js/dashboardOperador.js"></script>
+<script src="../js/paginapasajeros.js"></script>
 </body>
 </html>

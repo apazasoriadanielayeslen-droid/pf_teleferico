@@ -2,44 +2,67 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-// Importamos el pool de conexión (ya configurado en conexion.js)
 const db = require("./src/config/conexion");
 
-// Importamos rutas **después** de express, pero antes de usar app
+// Rutas y controladores
 const authRoutes = require('./src/routes/auth');
 const supervisorRoutes = require('./src/routes/supervisor');
 const maintRoutes = require('./src/routes/maintenance');
+const estacionesRouter = require('./src/routes/estaciones');
+const flujopaCtrl = require('./src/controllers/flujopaController');
+
+// Middleware de autenticación
+const { verificarToken } = require('./src/middlewares/mauth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares (deben ir ANTES de las rutas)
+// Middlewares globales
 app.use(cors());
 app.use(express.json());
 
-// Rutas
+// =======================
+// RUTAS
+// =======================
 app.use('/api', authRoutes);
 app.use('/api/supervisor', supervisorRoutes);
 app.use('/api/supervisor/maint', maintRoutes);
+app.use('/api/estaciones', estacionesRouter);
 
-// Ruta de prueba / bienvenida
+// Rutas de flujo de pasajeros (protegidas con token)
+app.post('/api/registrar-flujo', verificarToken, flujopaCtrl.registrarFlujo);
+app.get('/api/flujo/hoy', verificarToken, flujopaCtrl.getFlujoHoy); 
+app.get('/api/flujo/ayer', verificarToken, flujopaCtrl.getFlujoAyer);
+
+// Ruta de prueba
 app.get("/", (req, res) => {
   res.json({ mensaje: "Servidor Teleférico funcionando 🚡" });
 });
 
-// 🔥 Verificar conexión a la base de datos al iniciar
+// =======================
+// VERIFICAR CONEXIÓN DB
+// =======================
 async function verificarConexion() {
   try {
     await db.query("SELECT 1");
     console.log("✅ Conexión exitosa a MySQL");
   } catch (error) {
-    console.error("❌ Error de conexión a MySQL:");
-    console.error(error.message);
+    console.error("❌ Error de conexión a MySQL:", error.message);
   }
 }
 
-// Iniciar servidor
+// =======================
+// INICIAR SERVIDOR
+// =======================
 app.listen(PORT, async () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   await verificarConexion();
+});
+
+// Opcional: Manejo global de errores 404
+app.use((req, res) => {
+  res.status(404).json({ 
+    ok: false, 
+    message: "Ruta no encontrada" 
+  });
 });
