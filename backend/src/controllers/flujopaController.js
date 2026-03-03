@@ -24,7 +24,6 @@ const registrarFlujo = async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // Verificar límite por hora
         const [rows] = await conn.execute(`
             SELECT SUM(cantidad) AS total_entrantes
             FROM flujo_pasajeros
@@ -45,7 +44,6 @@ const registrarFlujo = async (req, res) => {
             });
         }
 
-        // Insertar entradas
         if (entradasNum > 0) {
             await conn.execute(
                 "INSERT INTO flujo_pasajeros (id_estacion, tipo, cantidad) VALUES (?, 'ENTRADA', ?)",
@@ -53,7 +51,6 @@ const registrarFlujo = async (req, res) => {
             );
         }
 
-        // Insertar salidas
         if (salidasNum > 0) {
             await conn.execute(
                 "INSERT INTO flujo_pasajeros (id_estacion, tipo, cantidad) VALUES (?, 'SALIDA', ?)",
@@ -62,6 +59,8 @@ const registrarFlujo = async (req, res) => {
         }
 
         await conn.commit();
+
+        console.log(`Flujo registrado: Estación ${id_estacion}, Entrantes: ${entradasNum}, Salientes: ${salidasNum}, Hora: ${new Date().toISOString()}`);
 
         res.status(201).json({
             ok: true,
@@ -72,15 +71,13 @@ const registrarFlujo = async (req, res) => {
 
     } catch (err) {
         await conn.rollback();
-        console.error("Error registrar flujo:", err);
+        console.error("Error al registrar flujo:", err);
         res.status(500).json({ ok: false, message: "Error en la base de datos" });
     } finally {
         conn.release();
     }
 };
 
-
-// Nuevo endpoint para obtener historial de hoy
 const getFlujoHoy = async (req, res) => {
     const { id_estacion } = req.query;
 
@@ -106,7 +103,6 @@ const getFlujoHoy = async (req, res) => {
         `, [id_estacion]);
 
         res.status(200).json(rows);
-
     } catch (err) {
         console.error("Error al obtener flujo de hoy:", err);
         res.status(500).json({
@@ -118,9 +114,6 @@ const getFlujoHoy = async (req, res) => {
     }
 };
 
-// ... (resto del archivo igual)
-
-// Nuevo endpoint para flujo de ayer (para % vs ayer)
 const getFlujoAyer = async (req, res) => {
     const { id_estacion } = req.query;
 
@@ -146,7 +139,6 @@ const getFlujoAyer = async (req, res) => {
         `, [id_estacion]);
 
         res.status(200).json(rows);
-
     } catch (err) {
         console.error("Error al obtener flujo de ayer:", err);
         res.status(500).json({
@@ -158,4 +150,74 @@ const getFlujoAyer = async (req, res) => {
     }
 };
 
-module.exports = { registrarFlujo, getFlujoHoy, getFlujoAyer };
+// 1. Crear notificación de congestión
+const crearNotificacionCongestion = async (req, res) => {
+    const { id_personal, mensaje } = req.body;
+
+    if (!id_personal || !mensaje) {
+        return res.status(400).json({ ok: false, message: "Faltan datos (id_personal y mensaje)" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        const [result] = await conn.execute(
+            `INSERT INTO notificaciones 
+             (id_personal, titulo, mensaje, tipo, estado, leido) 
+             VALUES (?, ?, ?, 'CONGESTION', 'PENDIENTE', FALSE)`,
+            [id_personal, "Congestión detectada", mensaje]
+        );
+
+        const id_notificacion = result.insertId;
+
+        res.status(201).json({ 
+            ok: true, 
+            message: "Notificación creada", 
+            id_notificacion 
+        });
+    } catch (err) {
+        console.error("Error creando notificación:", err);
+        res.status(500).json({ ok: false, message: "Error en base de datos" });
+    } finally {
+        conn.release();
+    }
+};
+
+// 2. Marcar como solucionada
+const solucionarNotificacion = async (req, res) => {
+    const { id_notificacion } = req.body;
+
+    if (!id_notificacion) {
+        return res.status(400).json({ ok: false, message: "id_notificacion requerido" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        const [result] = await conn.execute(
+            `UPDATE notificaciones 
+             SET estado = 'RECIBIDO', leido = TRUE 
+             WHERE id_notificacion = ?`,
+            [id_notificacion]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ ok: false, message: "Notificación no encontrada" });
+        }
+
+        res.json({ ok: true, message: "Congestión marcada como solucionada" });
+    } catch (err) {
+        console.error("Error actualizando notificación:", err);
+        res.status(500).json({ ok: false, message: "Error en base de datos" });
+    } finally {
+        conn.release();
+    }
+};
+
+
+
+module.exports = {
+    registrarFlujo,
+    getFlujoHoy,
+    getFlujoAyer,
+    crearNotificacionCongestion,
+    solucionarNotificacion
+};

@@ -11,28 +11,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const estacionSelect = document.getElementById('estacionSelect');
-    const entrantesInput = document.getElementById('entrantesInput');
-    const salientesInput = document.getElementById('salientesInput');
-    const registrarBtn   = document.getElementById('registrarBtn');
+    const toggleSimulacionBtn = document.getElementById('toggleSimulacionBtn');
     const historialTbody = document.getElementById('historialTbody');
     const horaActualSpan = document.getElementById('horaActual');
+    const estadoSimulacion = document.getElementById('estadoSimulacion');
+    const alertaCongestion = document.getElementById('alertaCongestion');
 
     const CAPACIDAD_ESTACION = 1000;
-    const MAX_ENTRADA_POR_HORA = 1500; // 150 cabinas × 10 personas
+    const MAX_PASAJEROS_POR_CABINA = 10;
+    const MAX_ENTRADA_POR_HORA = 4500; // Aumentado para que no rechace tanto
 
     const ULTIMA_ESTACION_KEY = 'ultima_estacion_seleccionada';
 
-    // Actualizar hora actual cada minuto
+    let simulacionTimeout = null;
+    let simulacionActiva = false;
+
     function actualizarHora() {
         const now = new Date();
-        const horas = now.getHours().toString().padStart(2, '0');
-        const minutos = now.getMinutes().toString().padStart(2, '0');
-        horaActualSpan.textContent = `${horas}:${minutos}`;
+        horaActualSpan.textContent = now.toLocaleTimeString('es-BO', {hour:'2-digit', minute:'2-digit'});
     }
     actualizarHora();
     setInterval(actualizarHora, 60000);
 
-    // Cargar estaciones
     async function cargarEstaciones() {
         try {
             const res = await fetch(`${API_URL}/api/estaciones`, {
@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 estacionSelect.appendChild(opt);
             });
 
-            // Restaurar última selección
             const ultima = localStorage.getItem(ULTIMA_ESTACION_KEY);
             if (ultima && estaciones.some(e => e.id_estacion == ultima)) {
                 estacionSelect.value = ultima;
@@ -61,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Cargar historial
     async function cargarHistorial(id_estacion) {
         if (!id_estacion) return;
         try {
@@ -72,13 +70,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             renderHistorial(data);
             actualizarTarjetas(data, id_estacion);
+            verificarCongestion(data);
         } catch (err) {
             console.error("Error historial:", err);
             historialTbody.innerHTML = '<tr><td colspan="5" class="py-4 px-4 text-center text-red-400">Error al cargar historial</td></tr>';
+            alertaCongestion.classList.add('hidden');
         }
     }
 
-    // Renderizar tabla con resaltado de límites
     function renderHistorial(flujos) {
         historialTbody.innerHTML = '';
         let aforoAcumulado = 0;
@@ -88,36 +87,16 @@ document.addEventListener('DOMContentLoaded', () => {
             aforoAcumulado += neto;
 
             const porcAforo = (aforoAcumulado / CAPACIDAD_ESTACION) * 100;
-            let tendencia = '';
-            let color = '';
-            if (porcAforo < 50) {
-                tendencia = '↓ Baja ocupación';
-                color = 'text-green-400';
-            } else if (porcAforo < 80) {
-                tendencia = '↔ Media ocupación';
-                color = 'text-yellow-400';
-            } else {
-                tendencia = '↑ Alta ocupación';
-                color = 'text-red-400';
-            }
-
-            let filaClass = 'border-b border-white/10 hover:bg-white/5';
-            let notaLimite = '';
-            if (flujo.entrantes > MAX_ENTRADA_POR_HORA) {
-                filaClass += ' bg-red-900/50';
-                notaLimite = ' (¡Límite superado!)';
-            } else if (flujo.entrantes > MAX_ENTRADA_POR_HORA * 0.8) {
-                filaClass += ' bg-yellow-900/30';
-                notaLimite = ' (Cerca del límite)';
-            }
+            let tendencia = porcAforo < 50 ? '↓ Baja' : porcAforo < 80 ? '↔ Media' : '↑ Alta';
+            let color = porcAforo < 50 ? 'text-green-400' : porcAforo < 80 ? 'text-yellow-400' : 'text-red-400';
 
             const fila = `
-                <tr class="${filaClass}">
+                <tr class="border-b border-white/10 hover:bg-white/5">
                     <td class="py-4 px-4">${flujo.hora}:00</td>
                     <td class="py-4 px-4">${flujo.entrantes}</td>
                     <td class="py-4 px-4">${flujo.salientes}</td>
                     <td class="py-4 px-4">${neto >= 0 ? '+' : ''}${neto}</td>
-                    <td class="py-4 px-4 ${color}">${tendencia}${notaLimite}</td>
+                    <td class="py-4 px-4 ${color}">${tendencia}</td>
                 </tr>
             `;
             historialTbody.innerHTML += fila;
@@ -128,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Actualizar tarjetas
     async function actualizarTarjetas(flujos, id_estacion) {
         if (flujos.length === 0) {
             document.getElementById('totalHoyValor').textContent = '0';
@@ -136,73 +114,79 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('ultimaHoraRango').textContent = 'Sin datos';
             document.getElementById('picoValor').textContent = '0';
             document.getElementById('picoHora').textContent = 'N/A';
-            document.getElementById('promedioValor').textContent = '0';
+            document.getElementById('totalHoyPorc').textContent = '+0% vs ayer';
             return;
         }
 
-        // Total Hoy (entrantes)
         const totalHoy = flujos.reduce((sum, f) => sum + f.entrantes, 0);
 
-        // Pico del día
-        let pico = 0;
-        let picoHora = 0;
-        flujos.forEach(f => {
-            if (f.entrantes > pico) {
-                pico = f.entrantes;
-                picoHora = f.hora;
-            }
-        });
+        let pico = 0, picoHora = 0;
+        flujos.forEach(f => { if (f.entrantes > pico) { pico = f.entrantes; picoHora = f.hora; }});
         const picoTexto = `${picoHora < 10 ? '0' : ''}${picoHora}:00 ${picoHora < 12 ? 'AM' : 'PM'}`;
 
-        // Última hora registrada
         const ultima = flujos[flujos.length - 1];
         const ultimaValor = ultima.entrantes;
         const ultimaRango = `${ultima.hora < 10 ? '0' : ''}${ultima.hora}:00 - ${(ultima.hora + 1) % 24 < 10 ? '0' : ''}${(ultima.hora + 1) % 24}:00`;
 
-        // Promedio últimas 5 horas
-        const ult5 = flujos.slice(-5);
-        const prom = ult5.length ? Math.round(ult5.reduce((s, f) => s + f.entrantes, 0) / ult5.length) : 0;
-
-        // Actualizar DOM
         document.getElementById('totalHoyValor').textContent = totalHoy.toLocaleString('es-BO');
         document.getElementById('ultimaHoraValor').textContent = ultimaValor.toLocaleString('es-BO');
         document.getElementById('ultimaHoraRango').textContent = ultimaRango;
         document.getElementById('picoValor').textContent = pico.toLocaleString('es-BO');
         document.getElementById('picoHora').textContent = picoTexto;
-        document.getElementById('promedioValor').textContent = prom.toLocaleString('es-BO');
-
-        // % vs ayer (opcional)
-        try {
-            const res = await fetch(`${API_URL}/api/flujo/ayer?id_estacion=${id_estacion}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const ayer = await res.json();
-                const totAyer = ayer.reduce((s, f) => s + f.entrantes, 0);
-                const porc = totAyer > 0 ? Math.round(((totalHoy - totAyer) / totAyer) * 100) : 0;
-                const signo = porc >= 0 ? '+' : '';
-                document.getElementById('totalHoyPorc').textContent = `${signo}${porc}% vs ayer`;
-                document.getElementById('totalHoyPorc').className = `text-xs ${porc >= 0 ? 'text-green-400' : 'text-red-400'} mt-1`;
-            }
-        } catch (e) {
-            document.getElementById('totalHoyPorc').textContent = 'N/A vs ayer';
-        }
     }
 
-    // Registrar flujo
-    registrarBtn.addEventListener('click', async () => {
-        const id_estacion = estacionSelect.value;
-        let entrantes = Number(entrantesInput.value) || 0;
-        let salientes = Number(salientesInput.value) || 0;
+    function verificarCongestion(flujos) {
+        let aforo = 0;
+        flujos.forEach(f => aforo += f.entrantes - f.salientes);
+        alertaCongestion.classList.toggle('hidden', aforo <= CAPACIDAD_ESTACION);
+    }
 
-        if (!id_estacion) return alert("Seleccione una estación");
-        if (entrantes === 0 && salientes === 0) return alert("Ingrese al menos entradas o salidas");
+    // ===================== SIMULACIÓN =====================
+    async function simularYRegistrarFlujo(id_estacion) {
+        // Flujo normal: números pequeños
+        let entrantes = Math.floor(Math.random() * 7) + 2;   // 2–8
+        let salientes = Math.floor(Math.random() * (entrantes + 1)); // nunca más que entrantes
 
-        if (entrantes > MAX_ENTRADA_POR_HORA) {
-            alert(`No puede registrar más de ${MAX_ENTRADA_POR_HORA} entrantes por operación (límite horario).`);
-            return;
+        // Congestión ocasional (~5% probabilidad)
+        let idNotificacion = null;
+        const hayCongestion = Math.random() < 0.05;
+
+        if (hayCongestion) {
+            const entrantesOriginal = Math.floor(Math.random() * 5) + 11; // 11–15
+            entrantes = entrantesOriginal;
+
+            console.log(`[CONGESTIÓN] Intentando ${entrantesOriginal} entrantes`);
+
+            // Limitar a 10 pasajeros por cabina
+            entrantes = MAX_PASAJEROS_POR_CABINA;
+
+            estadoSimulacion.textContent = `¡Congestión! (${entrantesOriginal} pasajeros intentaron entrar)`;
+
+            // Crear notificación en BD
+            try {
+                const resNotif = await fetch(`${API_URL}/api/notificaciones/crear-congestion`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        id_personal: localStorage.getItem('id_personal') || 1, // ← CAMBIA POR EL ID REAL DEL USUARIO
+                        mensaje: `Congestión detectada en estación ${id_estacion}: ${entrantesOriginal} pasajeros en un intervalo (límite 10 por cabina)`
+                    })
+                });
+
+                const dataNotif = await resNotif.json();
+                if (resNotif.ok && dataNotif.id_notificacion) {
+                    idNotificacion = dataNotif.id_notificacion;
+                    mostrarAlertaCongestion(idNotificacion);
+                }
+            } catch (err) {
+                console.error("Error creando notificación:", err);
+            }
         }
 
+        // Registrar el flujo (con entrantes limitado si hubo congestión)
         try {
             const res = await fetch(`${API_URL}/api/registrar-flujo`, {
                 method: 'POST',
@@ -216,35 +200,104 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             if (!res.ok) {
-                alert(data.message || "Error al registrar");
+                estadoSimulacion.textContent = `Rechazado: ${data.message || 'límite horario'}`;
                 return;
             }
 
-            alert("Flujo registrado correctamente");
-            entrantesInput.value = 0;
-            salientesInput.value = 0;
-
+            console.log(`Flujo registrado → Entrantes: ${entrantes} | Salientes: ${salientes}`);
             cargarHistorial(id_estacion);
-            localStorage.setItem(ULTIMA_ESTACION_KEY, id_estacion);
 
         } catch (err) {
-            console.error(err);
-            alert("Error de conexión");
+            console.error("Error de red:", err);
+            estadoSimulacion.textContent = 'Error de conexión – reintentando...';
+        } finally {
+            if (simulacionActiva) {
+                const nextInterval = Math.floor(Math.random() * 90000) + 45000; // 45–135 seg
+                simulacionTimeout = setTimeout(() => simularYRegistrarFlujo(id_estacion), nextInterval);
+            }
+        }
+    }
+
+    // Mostrar alerta con botón "Solucionar"
+    function mostrarAlertaCongestion(idNotificacion) {
+        const contenedor = document.querySelector('.p-6.max-w-7xl') || document.body;
+        const alerta = document.createElement('div');
+        alerta.id = `alerta-${idNotificacion}`;
+        alerta.className = 'bg-red-900/80 text-white p-4 rounded-lg mb-6 flex justify-between items-center shadow-lg';
+        alerta.innerHTML = `
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <p><strong>¡CONGESTIÓN DETECTADA!</strong> Más de 10 pasajeros en un intervalo.</p>
+            </div>
+            <button id="btnSolucionar-${idNotificacion}" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded-lg font-medium transition">
+                Solucionar
+            </button>
+        `;
+
+        contenedor.prepend(alerta);
+
+        document.getElementById(`btnSolucionar-${idNotificacion}`).addEventListener('click', async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/notificaciones/solucionar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ id_notificacion: idNotificacion })
+                });
+
+                if (res.ok) {
+                    alerta.classList.remove('bg-red-900/80');
+                    alerta.classList.add('bg-green-900/70');
+                    alerta.innerHTML = `<p class="text-green-200 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Congestión solucionada ✓
+                    </p>`;
+                    setTimeout(() => alerta.remove(), 6000);
+                } else {
+                    alert("No se pudo marcar como solucionada");
+                }
+            } catch (err) {
+                console.error("Error al solucionar:", err);
+                alert("Error de conexión");
+            }
+        });
+    }
+
+    toggleSimulacionBtn.addEventListener('click', () => {
+        const id_estacion = estacionSelect.value;
+        if (!id_estacion) return alert("Seleccione una estación primero");
+
+        simulacionActiva = !simulacionActiva;
+
+        if (simulacionActiva) {
+            toggleSimulacionBtn.textContent = 'Detener Simulación';
+            toggleSimulacionBtn.classList.add('bg-emerald-600');
+            estadoSimulacion.textContent = 'Simulación activa...';
+            simularYRegistrarFlujo(id_estacion);
+        } else {
+            toggleSimulacionBtn.textContent = 'Iniciar Simulación';
+            toggleSimulacionBtn.classList.remove('bg-emerald-600');
+            estadoSimulacion.textContent = 'Simulación detenida.';
+            clearTimeout(simulacionTimeout);
         }
     });
 
-    // Cambio de estación
     estacionSelect.addEventListener('change', () => {
         const id = estacionSelect.value;
         if (id) {
             localStorage.setItem(ULTIMA_ESTACION_KEY, id);
             cargarHistorial(id);
+            if (simulacionActiva) toggleSimulacionBtn.click();
         } else {
             localStorage.removeItem(ULTIMA_ESTACION_KEY);
             historialTbody.innerHTML = '';
+            alertaCongestion.classList.add('hidden');
         }
     });
 
-    // Inicio
     cargarEstaciones();
 });

@@ -11,7 +11,7 @@
 </head>
 <body class="min-h-screen text-white flex">
 
-  <!-- Menú lateral -->
+  <!-- Menú lateral (sin cambios) -->
   <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
     <div class="p-6 border-b border-teal-700/50">
       <div class="flex items-center gap-3">
@@ -74,33 +74,34 @@
 
     <div class="p-6 max-w-7xl mx-auto">
 
-      <!-- Tarjetas de resumen -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+      <!-- Tarjetas de resumen – AHORA SOLO 3 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 text-center">
           <p class="text-sm text-gray-300">Total Hoy (entrantes)</p>
-          <p id="totalHoyValor" class="text-3xl font-bold mt-1"></p>
-          <p id="totalHoyPorc" class="text-xs text-green-400 mt-1">+0% vs ayer</p>
+          <p id="totalHoyValor" class="text-4xl font-bold mt-2"></p>
+          <p id="totalHoyPorc" class="text-sm text-green-400 mt-2">+0% vs ayer</p>
         </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 text-center">
           <p class="text-sm text-gray-300">Última Hora (entrantes)</p>
-          <p id="ultimaHoraValor" class="text-3xl font-bold mt-1">0</p>
-          <p id="ultimaHoraRango" class="text-xs text-green-400 mt-1">00:00 - 00:00</p>
+          <p id="ultimaHoraValor" class="text-4xl font-bold mt-2">0</p>
+          <p id="ultimaHoraRango" class="text-sm text-green-400 mt-2">00:00 - 00:00</p>
         </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 text-center">
           <p class="text-sm text-gray-300">Pico del Día (entrantes)</p>
-          <p id="picoValor" class="text-3xl font-bold mt-1">0</p>
-          <p id="picoHora" class="text-xs text-orange-400 mt-1">00:00 AM</p>
-        </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Promedio/Hora (últ. 5 h)</p>
-          <p id="promedioValor" class="text-3xl font-bold mt-1">0</p>
-          <p class="text-xs text-purple-400 mt-1">entrantes por hora</p>
+          <p id="picoValor" class="text-4xl font-bold mt-2">0</p>
+          <p id="picoHora" class="text-sm text-orange-400 mt-2">00:00 AM</p>
         </div>
       </div>
 
-      <!-- Formulario de registro -->
+      <!-- Nueva alerta de congestión -->
+      <div id="alertaCongestion" class="hidden bg-red-900/70 text-red-200 p-4 rounded-lg mb-6 flex items-center gap-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <p>¡Alerta de congestión! El aforo actual supera la capacidad máxima de la estación.</p>
+      </div>
+
+      <!-- Formulario de simulación (sin cambios) -->
       <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 mb-8">
-        <h2 class="text-2xl font-bold mb-6">Registrar Nuevo Flujo</h2>
+        <h2 class="text-2xl font-bold mb-6">Simulación de Flujo en Tiempo Real</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
           <div>
             <label class="block text-sm text-gray-300 mb-2">Estación</label>
@@ -108,24 +109,17 @@
               <option value="">-- Seleccione una estación --</option>
             </select>
           </div>
-          <div>
-            <label class="block text-sm text-gray-300 mb-2">Pasajeros Entrantes</label>
-            <input type="number" id="entrantesInput" min="0" max="1500" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
-          </div>
-          <div>
-            <label class="block text-sm text-gray-300 mb-2">Pasajeros Salientes</label>
-            <input type="number" id="salientesInput" min="0" max="1500" value="0" class="w-full bg-teal-900/50 border border-teal-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-teal-400">
-          </div>
-          <div>
-            <button id="registrarBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-medium transition mt-6">
-              + Registrar Flujo
+          <div class="col-span-3">
+            <button id="toggleSimulacionBtn" class="w-full bg-gray-600 hover:bg-gray-500 py-3 rounded-lg font-medium transition mt-6">
+              Iniciar Simulación
             </button>
           </div>
         </div>
         <p class="text-sm text-gray-400 mt-3 text-right">Hora actual: <span id="horaActual"></span></p>
+        <p id="estadoSimulacion" class="text-sm text-yellow-300 mt-3"></p>
       </div>
 
-      <!-- Historial -->
+      <!-- Historial (sin cambios) -->
       <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
         <h2 class="text-2xl font-bold mb-6">Historial de Flujo - Hoy</h2>
         <div class="overflow-x-auto">
