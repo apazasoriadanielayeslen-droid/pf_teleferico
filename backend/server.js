@@ -6,6 +6,8 @@ const db = require("./src/config/conexion");
 
 // Rutas y controladores
 const authRoutes = require('./src/routes/auth');
+const supervisorRoutes = require('./src/routes/supervisor');
+const maintRoutes = require('./src/routes/maintenance');
 const estacionesRouter = require('./src/routes/estaciones');
 const flujopaCtrl = require('./src/controllers/flujopaController');
 
@@ -23,6 +25,8 @@ app.use(express.json());
 // RUTAS
 // =======================
 app.use('/api', authRoutes);
+app.use('/api/supervisor', supervisorRoutes);
+app.use('/api/supervisor/maint', maintRoutes);
 app.use('/api/estaciones', estacionesRouter);
 
 // Rutas de flujo de pasajeros (protegidas con token)
