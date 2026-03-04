@@ -11,7 +11,7 @@
 </head>
 <body class="min-h-screen text-white flex">
 
-  <!-- Menú lateral (sin cambios) -->
+  <!-- Menú lateral -->
   <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
     <div class="p-6 border-b border-teal-700/50">
       <div class="flex items-center gap-3">
@@ -55,16 +55,17 @@
 
     <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
       <div class="max-w-full px-6 py-4 flex justify-between items-center">
-        <h1 class="text-2xl font-bold">Flujo de Pasajeros</h1>
+        <h1 class="text-2xl font-bold">Flujo de Pasajeros - <span id="estacionActual" class="text-teal-300">Cargando estación...</span></h1>
         <div class="flex items-center gap-4">
-          <button class="relative text-teal-200 hover:text-white">
+          <!-- Campanita (sin mover) -->
+          <button id="btnNotificaciones" class="relative text-teal-200 hover:text-white cursor-pointer focus:outline-none">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">3</span>
+            <span id="notifBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 hidden">0</span>
           </button>
           <div class="flex items-center gap-3">
             <div class="text-right">
               <p class="font-medium">Bienvenid@, <span id="nombreUsuario" class="text-teal-300"></span></p>
-              <p class="text-sm text-teal-300">Rol: Operador - Estación Centro</p>
+              <p class="text-sm text-teal-300">Rol: Operador</p>
             </div>
             <div class="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center font-bold">OP</div>
           </div>
@@ -74,7 +75,7 @@
 
     <div class="p-6 max-w-7xl mx-auto">
 
-      <!-- Tarjetas de resumen – AHORA SOLO 3 -->
+      <!-- Tarjetas resumen -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 text-center">
           <p class="text-sm text-gray-300">Total Hoy (entrantes)</p>
@@ -93,13 +94,13 @@
         </div>
       </div>
 
-      <!-- Nueva alerta de congestión -->
+      <!-- Alerta global de aforo -->
       <div id="alertaCongestion" class="hidden bg-red-900/70 text-red-200 p-4 rounded-lg mb-6 flex items-center gap-3">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
         <p>¡Alerta de congestión! El aforo actual supera la capacidad máxima de la estación.</p>
       </div>
 
-      <!-- Formulario de simulación (sin cambios) -->
+      <!-- Tarjeta de simulación -->
       <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 mb-8">
         <h2 class="text-2xl font-bold mb-6">Simulación de Flujo en Tiempo Real</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
@@ -117,10 +118,28 @@
         </div>
         <p class="text-sm text-gray-400 mt-3 text-right">Hora actual: <span id="horaActual"></span></p>
         <p id="estadoSimulacion" class="text-sm text-yellow-300 mt-3"></p>
+
+        <!-- Alerta de congestión -->
+        <div id="alertaCongestionTarjeta" class="hidden bg-red-900/80 text-white p-5 rounded-lg mt-4 shadow-lg">
+          <div class="flex items-center gap-3 mb-3">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <p id="mensajeCongestion" class="text-lg font-medium"></p>
+          </div>
+          <div class="flex justify-end gap-4">
+            <button id="btnIgnorarCongestion" class="bg-gray-700 hover:bg-gray-600 px-6 py-2.5 rounded-lg font-medium transition">
+              No, ignorar
+            </button>
+            <button id="btnConfirmarCongestion" class="bg-green-600 hover:bg-green-500 px-6 py-2.5 rounded-lg font-medium transition">
+              Sí, registrar incidente
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- Historial (sin cambios) -->
-      <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+      <!-- Historial -->
+      <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 mb-8">
         <h2 class="text-2xl font-bold mb-6">Historial de Flujo - Hoy</h2>
         <div class="overflow-x-auto">
           <table class="w-full text-left">
@@ -133,14 +152,36 @@
                 <th class="py-3 px-4">Tendencia</th>
               </tr>
             </thead>
-            <tbody id="historialTbody">
-              <!-- Las filas se agregan con JavaScript -->
-            </tbody>
+            <tbody id="historialTbody"></tbody>
           </table>
         </div>
       </div>
 
+      <!-- Notificaciones Ignoradas -->
+      <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+        <h2 class="text-2xl font-bold mb-6 text-orange-400">Notificaciones Ignoradas (Pendientes)</h2>
+        <div id="ignoradasContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <p id="sinIgnoradas" class="text-center text-gray-400 mt-6">No hay notificaciones ignoradas por el momento.</p>
+      </div>
+
     </div>
+
+    <!-- MODAL para campanita -->
+    <div id="modalNotificaciones" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+      <div class="bg-teal-950/90 backdrop-blur-lg border border-teal-700/50 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-orange-400">Congestiones Ignoradas (Pendientes)</h2>
+          <button id="cerrarModal" class="text-gray-400 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="modalContent" class="space-y-4">
+          <!-- Notificaciones se insertan aquí -->
+        </div>
+        <p id="sinPendientesModal" class="text-center text-gray-400 mt-6 hidden">No hay congestiones pendientes ignoradas.</p>
+      </div>
+    </div>
+
   </main>
 
 <script src="../js/dashboardOperador.js"></script>

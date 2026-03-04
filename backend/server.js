@@ -33,9 +33,12 @@ app.use('/api/estaciones', estacionesRouter);
 app.post('/api/registrar-flujo', verificarToken, flujopaCtrl.registrarFlujo);
 app.get('/api/flujo/hoy', verificarToken, flujopaCtrl.getFlujoHoy); 
 app.get('/api/flujo/ayer', verificarToken, flujopaCtrl.getFlujoAyer);
-// En tu router (ej: notificacionesRouter.js o el principal)
-app.post('/api/crear-congestion', verificarToken, flujopaCtrl.crearNotificacionCongestion);
-app.post('/api/solucionar', verificarToken, flujopaCtrl.solucionarNotificacion);
+app.post('/api/confirmar-congestion', verificarToken, flujopaCtrl.confirmarCongestion);
+app.post('/api/ignorar-congestion', verificarToken, flujopaCtrl.ignorarCongestion);
+app.post('/api/notificaciones/solucionar', verificarToken, flujopaCtrl.solucionarNotificacion);
+app.get('/api/notificaciones/ignoradas', verificarToken, flujopaCtrl.getNotificacionesIgnoradas);
+
+
 
 // Ruta de prueba
 app.get("/", (req, res) => {

@@ -1,6 +1,6 @@
 const pool = require('../config/conexion');
 
-const MAX_ENTRADA_POR_HORA = 1500;
+const MAX_ENTRADA_POR_HORA = 4500;
 
 const registrarFlujo = async (req, res) => {
     const { id_estacion, entrantes = 0, salientes = 0 } = req.body;
@@ -16,16 +16,52 @@ const registrarFlujo = async (req, res) => {
         return res.status(400).json({ ok: false, message: "Cantidades no pueden ser negativas" });
     }
 
-    if (entradasNum === 0 && salidasNum === 0) {
-        return res.status(400).json({ ok: false, message: "Debe registrar al menos una entrada o salida" });
-    }
-
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
 
+        const [estacionRows] = await conn.execute(
+            'SELECT capacidad_maxima FROM estaciones WHERE id_estacion = ?',
+            [id_estacion]
+        );
+        const capacidadEstacion = estacionRows[0]?.capacidad_maxima || 1000;
+
         const [rows] = await conn.execute(`
-            SELECT SUM(cantidad) AS total_entrantes
+            SELECT 
+                SUM(CASE WHEN tipo = 'ENTRADA' THEN cantidad ELSE 0 END) AS total_entradas,
+                SUM(CASE WHEN tipo = 'SALIDA' THEN cantidad ELSE 0 END) AS total_salidas
+            FROM flujo_pasajeros
+            WHERE id_estacion = ?
+              AND DATE(fecha) = CURDATE()
+        `, [id_estacion]);
+
+        const totalEntradas = rows[0]?.total_entradas || 0;
+        const totalSalidas  = rows[0]?.total_salidas  || 0;
+        const aforoActual   = totalEntradas - totalSalidas;
+
+        const aforoProyectado = aforoActual + entradasNum - salidasNum;
+
+        if (aforoProyectado > capacidadEstacion) {
+            await conn.rollback();
+            return res.status(400).json({
+                ok: false,
+                message: `Estación llena. Aforo actual: ${aforoActual} | Proyectado: ${aforoProyectado} (máx. ${capacidadEstacion})`
+            });
+        }
+
+        if (entradasNum > 10) {
+            await conn.rollback();
+            return res.status(409).json({
+                ok: false,
+                isCongestion: true,
+                message: "Congestión detectada: más de 10 pasajeros por intervalo",
+                attemptedEntrantes: entradasNum,
+                maxPermitido: 10
+            });
+        }
+
+        const [rowsHora] = await conn.execute(`
+            SELECT SUM(cantidad) AS entrantesEstaHora
             FROM flujo_pasajeros
             WHERE id_estacion = ?
               AND tipo = 'ENTRADA'
@@ -33,15 +69,9 @@ const registrarFlujo = async (req, res) => {
               AND HOUR(fecha) = HOUR(NOW())
         `, [id_estacion]);
 
-        const entrantesActuales = rows[0]?.total_entrantes || 0;
-        const entrantesProyectados = entrantesActuales + entradasNum;
-
-        if (entrantesProyectados > MAX_ENTRADA_POR_HORA) {
-            await conn.rollback();
-            return res.status(400).json({
-                ok: false,
-                message: `Límite superado: ${entrantesProyectados} entrantes proyectados en esta hora (máx. ${MAX_ENTRADA_POR_HORA} = 150 cabinas)`
-            });
+        const entrantesEstaHora = rowsHora[0]?.entrantesEstaHora || 0;
+        if (entrantesEstaHora + entradasNum > MAX_ENTRADA_POR_HORA) {
+            console.warn(`Throughput horario superado: ${entrantesEstaHora + entradasNum} > ${MAX_ENTRADA_POR_HORA}`);
         }
 
         if (entradasNum > 0) {
@@ -60,19 +90,163 @@ const registrarFlujo = async (req, res) => {
 
         await conn.commit();
 
-        console.log(`Flujo registrado: Estación ${id_estacion}, Entrantes: ${entradasNum}, Salientes: ${salidasNum}, Hora: ${new Date().toISOString()}`);
+        console.log(`Flujo OK → Estación ${id_estacion} | Entrantes: ${entradasNum} | Salientes: ${salidasNum} | Aforo: ${aforoProyectado}`);
 
         res.status(201).json({
             ok: true,
             message: "Flujo registrado correctamente",
-            entradas: entradasNum,
-            salidas: salidasNum
+            aforoActual: aforoProyectado
         });
 
     } catch (err) {
         await conn.rollback();
         console.error("Error al registrar flujo:", err);
-        res.status(500).json({ ok: false, message: "Error en la base de datos" });
+        res.status(500).json({ ok: false, message: "Error interno en el servidor" });
+    } finally {
+        conn.release();
+    }
+};
+
+const confirmarCongestion = async (req, res) => {
+    const { id_estacion, attemptedEntrantes } = req.body;
+    const id_personal = req.user.id;
+
+    if (!id_estacion || !attemptedEntrantes || !id_personal) {
+        return res.status(400).json({ ok: false, message: "Faltan datos requeridos" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [incResult] = await conn.execute(`
+            INSERT INTO incidentes 
+            (titulo, tipo, nivel_criticidad, descripcion, id_estacion, id_reportado_por, estado)
+            VALUES (?, 'OPERATIVO', 'MEDIO', ?, ?, ?, 'ABIERTO')
+        `, [
+            `Congestión detectada - Estación ${id_estacion}`,
+            `Intento de ingreso de ${attemptedEntrantes} pasajeros (límite 10 por intervalo/cabina)`,
+            id_estacion,
+            id_personal
+        ]);
+        const idIncidente = incResult.insertId;
+
+        const [notifResult] = await conn.execute(`
+            INSERT INTO notificaciones 
+            (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
+            VALUES (?, ?, ?, 'CONGESTION', 'PENDIENTE', FALSE, ?)
+        `, [
+            id_personal,
+            "Congestión detectada",
+            `Estación ${id_estacion}: intento de ${attemptedEntrantes} pasajeros en un intervalo (límite 10)`,
+            idIncidente
+        ]);
+
+        await conn.commit();
+
+        res.json({
+            ok: true,
+            message: "Incidente y notificación registrados",
+            id_incidente: idIncidente,
+            id_notificacion: notifResult.insertId
+        });
+
+    } catch (err) {
+        await conn.rollback();
+        console.error("Error al confirmar congestión:", err);
+        res.status(500).json({ ok: false, message: "Error al registrar congestión" });
+    } finally {
+        conn.release();
+    }
+};
+
+const ignorarCongestion = async (req, res) => {
+    const { id_estacion, attemptedEntrantes } = req.body;
+    const id_personal = req.user.id;
+
+    if (!id_estacion || !attemptedEntrantes || !id_personal) {
+        return res.status(400).json({ ok: false, message: "Faltan datos requeridos" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [incResult] = await conn.execute(`
+            INSERT INTO incidentes 
+            (titulo, tipo, nivel_criticidad, descripcion, id_estacion, id_reportado_por, estado)
+            VALUES (?, 'OPERATIVO', 'MEDIO', ?, ?, ?, 'ABIERTO')
+        `, [
+            `Congestión ignorada - Estación ${id_estacion}`,
+            `Intento ignorado de ${attemptedEntrantes} pasajeros (límite 10)`,
+            id_estacion,
+            id_personal
+        ]);
+        const idIncidente = incResult.insertId;
+
+        const [notifResult] = await conn.execute(`
+            INSERT INTO notificaciones 
+            (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
+            VALUES (?, ?, ?, 'CONGESTION', 'PENDIENTE', FALSE, ?)
+        `, [
+            id_personal,
+            "Congestión ignorada",
+            `Estación ${id_estacion}: intento de ${attemptedEntrantes} pasajeros ignorado`,
+            idIncidente
+        ]);
+
+        await conn.commit();
+
+        res.json({
+            ok: true,
+            message: "Congestión registrada como ignorada",
+            id_incidente: idIncidente,
+            id_notificacion: notifResult.insertId,
+            estacion: id_estacion,
+            attemptedEntrantes
+        });
+
+    } catch (err) {
+        await conn.rollback();
+        console.error("Error al ignorar congestión:", err);
+        res.status(500).json({ ok: false, message: "Error al registrar ignorada" });
+    } finally {
+        conn.release();
+    }
+};
+
+const solucionarNotificacion = async (req, res) => {
+    const { id_notificacion, id_incidente } = req.body;
+
+    if (!id_notificacion || !id_incidente) {
+        return res.status(400).json({ ok: false, message: "Faltan id_notificacion o id_incidente" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        await conn.execute(
+            `UPDATE incidentes 
+             SET estado = 'RESUELTO', fecha_actualizacion = NOW() 
+             WHERE id_incidente = ?`,
+            [id_incidente]
+        );
+
+        await conn.execute(
+            `UPDATE notificaciones 
+             SET estado = 'RECIBIDO', leido = TRUE 
+             WHERE id_notificacion = ?`,
+            [id_notificacion]
+        );
+
+        await conn.commit();
+
+        res.json({ ok: true, message: "Notificación e incidente solucionados correctamente" });
+    } catch (err) {
+        await conn.rollback();
+        console.error("Error al solucionar:", err);
+        res.status(500).json({ ok: false, message: "Error al actualizar en BD" });
     } finally {
         conn.release();
     }
@@ -80,12 +254,8 @@ const registrarFlujo = async (req, res) => {
 
 const getFlujoHoy = async (req, res) => {
     const { id_estacion } = req.query;
-
     if (!id_estacion || isNaN(Number(id_estacion))) {
-        return res.status(400).json({
-            ok: false,
-            message: "id_estacion es requerido y debe ser un número"
-        });
+        return res.status(400).json({ ok: false, message: "id_estacion requerido" });
     }
 
     const conn = await pool.getConnection();
@@ -97,18 +267,15 @@ const getFlujoHoy = async (req, res) => {
                 SUM(CASE WHEN tipo = 'SALIDA' THEN cantidad ELSE 0 END) AS salientes
             FROM flujo_pasajeros
             WHERE id_estacion = ? 
-                AND DATE(fecha) = CURDATE()
+              AND DATE(fecha) = CURDATE()
             GROUP BY HOUR(fecha)
             ORDER BY hora ASC
         `, [id_estacion]);
 
         res.status(200).json(rows);
     } catch (err) {
-        console.error("Error al obtener flujo de hoy:", err);
-        res.status(500).json({
-            ok: false,
-            message: "Error al consultar la base de datos"
-        });
+        console.error("Error getFlujoHoy:", err);
+        res.status(500).json({ ok: false, message: "Error al consultar" });
     } finally {
         conn.release();
     }
@@ -116,12 +283,8 @@ const getFlujoHoy = async (req, res) => {
 
 const getFlujoAyer = async (req, res) => {
     const { id_estacion } = req.query;
-
     if (!id_estacion || isNaN(Number(id_estacion))) {
-        return res.status(400).json({
-            ok: false,
-            message: "id_estacion es requerido y debe ser un número"
-        });
+        return res.status(400).json({ ok: false, message: "id_estacion requerido" });
     }
 
     const conn = await pool.getConnection();
@@ -133,91 +296,59 @@ const getFlujoAyer = async (req, res) => {
                 SUM(CASE WHEN tipo = 'SALIDA' THEN cantidad ELSE 0 END) AS salientes
             FROM flujo_pasajeros
             WHERE id_estacion = ? 
-                AND DATE(fecha) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+              AND DATE(fecha) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
             GROUP BY HOUR(fecha)
             ORDER BY hora ASC
         `, [id_estacion]);
 
         res.status(200).json(rows);
     } catch (err) {
-        console.error("Error al obtener flujo de ayer:", err);
-        res.status(500).json({
-            ok: false,
-            message: "Error al consultar la base de datos"
-        });
+        console.error("Error getFlujoAyer:", err);
+        res.status(500).json({ ok: false, message: "Error al consultar" });
     } finally {
         conn.release();
     }
 };
 
-// 1. Crear notificación de congestión
-const crearNotificacionCongestion = async (req, res) => {
-    const { id_personal, mensaje } = req.body;
+// ... resto del código igual ...
 
-    if (!id_personal || !mensaje) {
-        return res.status(400).json({ ok: false, message: "Faltan datos (id_personal y mensaje)" });
-    }
+const getNotificacionesIgnoradas = async (req, res) => {
+    const id_personal = req.user.id;
 
     const conn = await pool.getConnection();
     try {
-        const [result] = await conn.execute(
-            `INSERT INTO notificaciones 
-             (id_personal, titulo, mensaje, tipo, estado, leido) 
-             VALUES (?, ?, ?, 'CONGESTION', 'PENDIENTE', FALSE)`,
-            [id_personal, "Congestión detectada", mensaje]
-        );
+        const [rows] = await conn.execute(`
+            SELECT 
+                n.id_notificacion, 
+                n.titulo, 
+                n.mensaje, 
+                n.fecha, 
+                n.estado, 
+                e.nombre AS estacion
+            FROM notificaciones n
+            LEFT JOIN incidentes i ON n.id_incidente = i.id_incidente
+            LEFT JOIN estaciones e ON i.id_estacion = e.id_estacion
+            WHERE n.id_personal = ? 
+              AND n.tipo = 'CONGESTION' 
+              AND n.leido = FALSE
+              AND n.estado = 'PENDIENTE'
+            ORDER BY n.fecha DESC
+        `, [id_personal]);
 
-        const id_notificacion = result.insertId;
-
-        res.status(201).json({ 
-            ok: true, 
-            message: "Notificación creada", 
-            id_notificacion 
-        });
+        res.json(rows);
     } catch (err) {
-        console.error("Error creando notificación:", err);
-        res.status(500).json({ ok: false, message: "Error en base de datos" });
+        console.error("Error al obtener notificaciones ignoradas:", err);
+        res.status(500).json({ ok: false, message: "Error al consultar notificaciones" });
     } finally {
         conn.release();
     }
 };
-
-// 2. Marcar como solucionada
-const solucionarNotificacion = async (req, res) => {
-    const { id_notificacion } = req.body;
-
-    if (!id_notificacion) {
-        return res.status(400).json({ ok: false, message: "id_notificacion requerido" });
-    }
-
-    const conn = await pool.getConnection();
-    try {
-        const [result] = await conn.execute(
-            `UPDATE notificaciones 
-             SET estado = 'RECIBIDO', leido = TRUE 
-             WHERE id_notificacion = ?`,
-            [id_notificacion]
-        );
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ ok: false, message: "Notificación no encontrada" });
-        }
-
-        res.json({ ok: true, message: "Congestión marcada como solucionada" });
-    } catch (err) {
-        console.error("Error actualizando notificación:", err);
-        res.status(500).json({ ok: false, message: "Error en base de datos" });
-    } finally {
-        conn.release();
-    }
-};
-
-
-
 module.exports = {
     registrarFlujo,
+    confirmarCongestion,
+    ignorarCongestion,
+    solucionarNotificacion,
     getFlujoHoy,
     getFlujoAyer,
-    crearNotificacionCongestion,
-    solucionarNotificacion
+    getNotificacionesIgnoradas  // ← nueva exportación
 };

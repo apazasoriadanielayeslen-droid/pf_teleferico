@@ -16,15 +16,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const horaActualSpan = document.getElementById('horaActual');
     const estadoSimulacion = document.getElementById('estadoSimulacion');
     const alertaCongestion = document.getElementById('alertaCongestion');
+    const alertaCongestionTarjeta = document.getElementById('alertaCongestionTarjeta');
+    const mensajeCongestion = document.getElementById('mensajeCongestion');
+    const btnIgnorarCongestion = document.getElementById('btnIgnorarCongestion');
+    const btnConfirmarCongestion = document.getElementById('btnConfirmarCongestion');
+    const ignoradasContainer = document.getElementById('ignoradasContainer');
+    const sinIgnoradas = document.getElementById('sinIgnoradas');
+    const estacionActualSpan = document.getElementById('estacionActual');
+    const btnNotificaciones = document.getElementById('btnNotificaciones');
+    const modalNotificaciones = document.getElementById('modalNotificaciones');
+    const modalContent = document.getElementById('modalContent');
+    const sinPendientesModal = document.getElementById('sinPendientesModal');
+    const cerrarModal = document.getElementById('cerrarModal');
+    const notifBadge = document.getElementById('notifBadge');
 
     const CAPACIDAD_ESTACION = 1000;
     const MAX_PASAJEROS_POR_CABINA = 10;
-    const MAX_ENTRADA_POR_HORA = 4500; // Aumentado para que no rechace tanto
+    const MAX_ENTRADA_POR_HORA = 4500;
 
     const ULTIMA_ESTACION_KEY = 'ultima_estacion_seleccionada';
 
     let simulacionTimeout = null;
     let simulacionActiva = false;
+    let tempCongestionData = null;
 
     function actualizarHora() {
         const now = new Date();
@@ -49,14 +63,121 @@ document.addEventListener('DOMContentLoaded', () => {
                 estacionSelect.appendChild(opt);
             });
 
-            const ultima = localStorage.getItem(ULTIMA_ESTACION_KEY);
-            if (ultima && estaciones.some(e => e.id_estacion == ultima)) {
-                estacionSelect.value = ultima;
-                cargarHistorial(ultima);
+            if (estaciones.length === 1) {
+                const unica = estaciones[0];
+                estacionSelect.value = unica.id_estacion;
+                estacionActualSpan.textContent = unica.nombre;
+                localStorage.setItem(ULTIMA_ESTACION_KEY, unica.id_estacion);
+                cargarHistorial(unica.id_estacion);
+            } else if (estaciones.length > 1) {
+                const ultimaId = localStorage.getItem(ULTIMA_ESTACION_KEY);
+                if (ultimaId && estaciones.some(e => e.id_estacion == ultimaId)) {
+                    estacionSelect.value = ultimaId;
+                    const est = estaciones.find(e => e.id_estacion == ultimaId);
+                    estacionActualSpan.textContent = est ? est.nombre : 'Estación seleccionada';
+                    cargarHistorial(ultimaId);
+                } else {
+                    estacionSelect.value = estaciones[0].id_estacion;
+                    estacionActualSpan.textContent = estaciones[0].nombre;
+                    localStorage.setItem(ULTIMA_ESTACION_KEY, estaciones[0].id_estacion);
+                    cargarHistorial(estaciones[0].id_estacion);
+                }
             }
         } catch (err) {
             console.error("Error estaciones:", err);
             estacionSelect.innerHTML = '<option value="">Error al cargar estaciones</option>';
+            estacionActualSpan.textContent = 'Error al cargar estación';
+        }
+    }
+
+    estacionSelect.addEventListener('change', () => {
+        const id = estacionSelect.value;
+        if (id) {
+            const nombre = estacionSelect.options[estacionSelect.selectedIndex].text;
+            estacionActualSpan.textContent = nombre;
+            localStorage.setItem(ULTIMA_ESTACION_KEY, id);
+            cargarHistorial(id);
+            if (simulacionActiva) toggleSimulacionBtn.click();
+            alertaCongestionTarjeta.classList.add('hidden');
+        } else {
+            estacionActualSpan.textContent = 'Seleccione una estación';
+            localStorage.removeItem(ULTIMA_ESTACION_KEY);
+            historialTbody.innerHTML = '';
+            alertaCongestion.classList.add('hidden');
+        }
+    });
+
+    // Función para actualizar el badge rojo (solo cuenta leido = FALSE)
+    async function actualizarBadge() {
+        try {
+            const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Error en la respuesta del servidor');
+            const notifs = await res.json();
+
+            if (notifs.length > 0) {
+                notifBadge.textContent = notifs.length;
+                notifBadge.classList.remove('hidden');
+            } else {
+                notifBadge.classList.add('hidden');
+            }
+        } catch (err) {
+            console.error("Error actualizando badge:", err);
+            notifBadge.classList.add('hidden');
+        }
+    }
+
+    // Abrir modal y cargar notificaciones ignoradas
+    btnNotificaciones.addEventListener('click', async () => {
+        modalNotificaciones.classList.remove('hidden');
+        await cargarNotificacionesIgnoradas();
+        await actualizarBadge(); // Refrescar badge al abrir
+    });
+
+    cerrarModal.addEventListener('click', () => {
+        modalNotificaciones.classList.add('hidden');
+    });
+
+    modalNotificaciones.addEventListener('click', (e) => {
+        if (e.target === modalNotificaciones) {
+            modalNotificaciones.classList.add('hidden');
+        }
+    });
+
+    async function cargarNotificacionesIgnoradas() {
+        try {
+            const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Error en la respuesta del servidor');
+            const notifs = await res.json();
+
+            modalContent.innerHTML = '';
+            if (notifs.length === 0) {
+                sinPendientesModal.classList.remove('hidden');
+                return;
+            }
+
+            sinPendientesModal.classList.add('hidden');
+
+            notifs.forEach(notif => {
+                const item = document.createElement('div');
+                item.className = 'bg-red-900/40 p-4 rounded-lg cursor-pointer hover:bg-red-800/50 transition';
+                item.innerHTML = `
+                    <p class="font-medium">${notif.titulo}</p>
+                    <p class="text-sm text-gray-300">${notif.mensaje}</p>
+                    <p class="text-xs text-gray-400 mt-1">Estación: ${notif.estacion || 'N/A'} - ${new Date(notif.fecha).toLocaleString('es-BO')}</p>
+                `;
+                item.addEventListener('click', () => {
+                    modalNotificaciones.classList.add('hidden');
+                    document.querySelector('.bg-white\\/5:last-child').scrollIntoView({ behavior: 'smooth' });
+                });
+                modalContent.appendChild(item);
+            });
+        } catch (err) {
+            console.error("Error cargando notificaciones:", err);
+            modalContent.innerHTML = '<p class="text-red-400 text-center">Error al cargar notificaciones.</p>';
         }
     }
 
@@ -141,52 +262,19 @@ document.addEventListener('DOMContentLoaded', () => {
         alertaCongestion.classList.toggle('hidden', aforo <= CAPACIDAD_ESTACION);
     }
 
-    // ===================== SIMULACIÓN =====================
     async function simularYRegistrarFlujo(id_estacion) {
-        // Flujo normal: números pequeños
-        let entrantes = Math.floor(Math.random() * 7) + 2;   // 2–8
-        let salientes = Math.floor(Math.random() * (entrantes + 1)); // nunca más que entrantes
+        let entrantes = Math.floor(Math.random() * 4);
+        let salientes = Math.floor(Math.random() * (entrantes + 1));
 
-        // Congestión ocasional (~5% probabilidad)
-        let idNotificacion = null;
         const hayCongestion = Math.random() < 0.05;
+        let attempted = entrantes;
 
         if (hayCongestion) {
-            const entrantesOriginal = Math.floor(Math.random() * 5) + 11; // 11–15
-            entrantes = entrantesOriginal;
-
-            console.log(`[CONGESTIÓN] Intentando ${entrantesOriginal} entrantes`);
-
-            // Limitar a 10 pasajeros por cabina
-            entrantes = MAX_PASAJEROS_POR_CABINA;
-
-            estadoSimulacion.textContent = `¡Congestión! (${entrantesOriginal} pasajeros intentaron entrar)`;
-
-            // Crear notificación en BD
-            try {
-                const resNotif = await fetch(`${API_URL}/api/notificaciones/crear-congestion`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        id_personal: localStorage.getItem('id_personal') || 1, // ← CAMBIA POR EL ID REAL DEL USUARIO
-                        mensaje: `Congestión detectada en estación ${id_estacion}: ${entrantesOriginal} pasajeros en un intervalo (límite 10 por cabina)`
-                    })
-                });
-
-                const dataNotif = await resNotif.json();
-                if (resNotif.ok && dataNotif.id_notificacion) {
-                    idNotificacion = dataNotif.id_notificacion;
-                    mostrarAlertaCongestion(idNotificacion);
-                }
-            } catch (err) {
-                console.error("Error creando notificación:", err);
-            }
+            attempted = Math.floor(Math.random() * 5) + 11;
+            entrantes = attempted;
+            console.log(`[CONGESTIÓN DETECTADA] Intentando ${attempted} entrantes`);
         }
 
-        // Registrar el flujo (con entrantes limitado si hubo congestión)
         try {
             const res = await fetch(`${API_URL}/api/registrar-flujo`, {
                 method: 'POST',
@@ -198,6 +286,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await res.json();
+
+            if (data.isCongestion) {
+                mensajeCongestion.textContent = 
+                    `¡Congestión detectada! Se intentaron registrar ${data.attemptedEntrantes} pasajeros (límite: 10 por cabina). ¿Registrar incidente?`;
+                alertaCongestionTarjeta.classList.remove('hidden');
+                estadoSimulacion.textContent = "Esperando decisión del operador...";
+
+                tempCongestionData = {
+                    id_estacion: id_estacion,
+                    attemptedEntrantes: data.attemptedEntrantes
+                };
+                return;
+            }
 
             if (!res.ok) {
                 estadoSimulacion.textContent = `Rechazado: ${data.message || 'límite horario'}`;
@@ -212,33 +313,114 @@ document.addEventListener('DOMContentLoaded', () => {
             estadoSimulacion.textContent = 'Error de conexión – reintentando...';
         } finally {
             if (simulacionActiva) {
-                const nextInterval = Math.floor(Math.random() * 90000) + 45000; // 45–135 seg
+                const nextInterval = Math.floor(Math.random() * 3500) + 1500;
+                console.log(`Próximo en ${(nextInterval / 1000).toFixed(1)}s`);
                 simulacionTimeout = setTimeout(() => simularYRegistrarFlujo(id_estacion), nextInterval);
             }
         }
     }
 
-    // Mostrar alerta con botón "Solucionar"
-    function mostrarAlertaCongestion(idNotificacion) {
-        const contenedor = document.querySelector('.p-6.max-w-7xl') || document.body;
-        const alerta = document.createElement('div');
-        alerta.id = `alerta-${idNotificacion}`;
-        alerta.className = 'bg-red-900/80 text-white p-4 rounded-lg mb-6 flex justify-between items-center shadow-lg';
-        alerta.innerHTML = `
-            <div class="flex items-center gap-3">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    async function confirmarCongestion() {
+        if (!tempCongestionData) return;
+
+        try {
+            const res = await fetch(`${API_URL}/api/confirmar-congestion`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id_estacion: tempCongestionData.id_estacion,
+                    attemptedEntrantes: tempCongestionData.attemptedEntrantes
+                })
+            });
+
+            const result = await res.json();
+
+            if (res.ok && result.ok) {
+                alertaCongestionTarjeta.classList.add('hidden');
+                estadoSimulacion.textContent = 'Incidente y notificación registrados correctamente.';
+                cargarHistorial(estacionSelect.value);
+                await actualizarBadge(); // Actualizar badge después de confirmar
+            } else {
+                estadoSimulacion.textContent = result.message || 'Error al registrar incidente.';
+            }
+        } catch (err) {
+            console.error("Error confirmando congestión:", err);
+            estadoSimulacion.textContent = 'Error de conexión al confirmar.';
+        } finally {
+            tempCongestionData = null;
+        }
+    }
+
+    async function ignorarCongestion() {
+        if (!tempCongestionData) return;
+
+        try {
+            const res = await fetch(`${API_URL}/api/ignorar-congestion`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id_estacion: tempCongestionData.id_estacion,
+                    attemptedEntrantes: tempCongestionData.attemptedEntrantes
+                })
+            });
+
+            const result = await res.json();
+
+            if (res.ok && result.ok) {
+                alertaCongestionTarjeta.classList.add('hidden');
+                estadoSimulacion.textContent = 'Congestión ignorada y registrada como pendiente.';
+                agregarNotificacionIgnorada(result);
+                await actualizarBadge(); // Actualizar badge inmediatamente después de ignorar
+            } else {
+                estadoSimulacion.textContent = result.message || 'Error al ignorar congestión.';
+            }
+        } catch (err) {
+            console.error("Error ignorando congestión:", err);
+            estadoSimulacion.textContent = 'Error de conexión al ignorar.';
+        } finally {
+            tempCongestionData = null;
+        }
+    }
+
+    function agregarNotificacionIgnorada(data) {
+        sinIgnoradas.classList.add('hidden');
+
+        const card = document.createElement('div');
+        card.className = 'bg-red-900/60 backdrop-blur-xl border border-red-700/50 rounded-xl p-5 shadow-lg';
+        card.setAttribute('data-id-notif', data.id_notificacion); // Para identificarla si quieres
+        card.innerHTML = `
+            <div class="flex items-center gap-3 mb-3">
+                <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
-                <p><strong>¡CONGESTIÓN DETECTADA!</strong> Más de 10 pasajeros en un intervalo.</p>
+                <h3 class="text-lg font-bold">Congestión Ignorada</h3>
             </div>
-            <button id="btnSolucionar-${idNotificacion}" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded-lg font-medium transition">
-                Solucionar
-            </button>
+            <p class="text-sm mb-2">Estación: ${data.estacion || 'Desconocida'}</p>
+            <p class="text-sm mb-2">Intentaron: ${data.attemptedEntrantes} pasajeros</p>
+            <p class="text-sm mb-4 text-gray-300">Estado: Pendiente</p>
+            <div class="flex justify-end">
+                <button class="solucionar-btn bg-green-600 hover:bg-green-500 px-5 py-2 rounded-lg font-medium transition"
+                    data-id-notif="${data.id_notificacion}"
+                    data-id-inc="${data.id_incidente}">
+                    Solucionar
+                </button>
+            </div>
         `;
 
-        contenedor.prepend(alerta);
+        ignoradasContainer.appendChild(card);
 
-        document.getElementById(`btnSolucionar-${idNotificacion}`).addEventListener('click', async () => {
+        // Listener para SOLUCIONAR
+        card.querySelector('.solucionar-btn').addEventListener('click', async function() {
+            const btn = this;
+            const idNotif = btn.dataset.idNotif;
+            const idInc = btn.dataset.idInc;
+
             try {
                 const res = await fetch(`${API_URL}/api/notificaciones/solucionar`, {
                     method: 'POST',
@@ -246,23 +428,32 @@ document.addEventListener('DOMContentLoaded', () => {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ id_notificacion: idNotificacion })
+                    body: JSON.stringify({ id_notificacion: idNotif, id_incidente: idInc })
                 });
 
+                const result = await res.json();
+
                 if (res.ok) {
-                    alerta.classList.remove('bg-red-900/80');
-                    alerta.classList.add('bg-green-900/70');
-                    alerta.innerHTML = `<p class="text-green-200 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Congestión solucionada ✓
-                    </p>`;
-                    setTimeout(() => alerta.remove(), 6000);
+                    btn.textContent = 'Solucionado ✓';
+                    btn.disabled = true;
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-500');
+                    btn.classList.add('bg-gray-500', 'cursor-not-allowed');
+                    estadoSimulacion.textContent = 'Notificación marcada como solucionada.';
+                    
+                    // Eliminar tarjeta y actualizar badge/badge después de 1.5s
+                    setTimeout(async () => {
+                        card.remove();
+                        if (ignoradasContainer.children.length === 0) {
+                            sinIgnoradas.classList.remove('hidden');
+                        }
+                        await actualizarBadge(); // Actualizar badge después de eliminar
+                    }, 1500);
                 } else {
-                    alert("No se pudo marcar como solucionada");
+                    estadoSimulacion.textContent = result.message || 'Error al solucionar.';
                 }
             } catch (err) {
                 console.error("Error al solucionar:", err);
-                alert("Error de conexión");
+                estadoSimulacion.textContent = 'Error de conexión.';
             }
         });
     }
@@ -286,18 +477,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    estacionSelect.addEventListener('change', () => {
-        const id = estacionSelect.value;
-        if (id) {
-            localStorage.setItem(ULTIMA_ESTACION_KEY, id);
-            cargarHistorial(id);
-            if (simulacionActiva) toggleSimulacionBtn.click();
-        } else {
-            localStorage.removeItem(ULTIMA_ESTACION_KEY);
-            historialTbody.innerHTML = '';
-            alertaCongestion.classList.add('hidden');
-        }
-    });
+    btnConfirmarCongestion.addEventListener('click', confirmarCongestion);
+    btnIgnorarCongestion.addEventListener('click', ignorarCongestion);
+
+    // Inicializar badge al cargar la página
+    actualizarBadge();
 
     cargarEstaciones();
 });

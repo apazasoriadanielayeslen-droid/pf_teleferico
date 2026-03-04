@@ -1,3 +1,4 @@
+// estaciones.js (sin cambios mayores, ya que no afecta directamente)
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/conexion');
