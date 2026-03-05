@@ -30,9 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const cerrarModal = document.getElementById('cerrarModal');
     const notifBadge = document.getElementById('notifBadge');
 
-    const CAPACIDAD_ESTACION = 1000;
     const MAX_PASAJEROS_POR_CABINA = 10;
     const MAX_ENTRADA_POR_HORA = 4500;
+
+    let capacidadEstacionActual = 1000;
 
     const ULTIMA_ESTACION_KEY = 'ultima_estacion_seleccionada';
 
@@ -42,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function actualizarHora() {
         const now = new Date();
-        horaActualSpan.textContent = now.toLocaleTimeString('es-BO', {hour:'2-digit', minute:'2-digit'});
+        horaActualSpan.textContent = now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
     }
     actualizarHora();
     setInterval(actualizarHora, 60000);
@@ -56,16 +57,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const estaciones = await res.json();
 
             estacionSelect.innerHTML = '<option value="">-- Seleccione una estación --</option>';
+
             estaciones.forEach(est => {
                 const opt = document.createElement('option');
                 opt.value = est.id_estacion;
                 opt.textContent = est.nombre;
+                opt.dataset.capacidad = est.capacidad_maxima || 1000;
                 estacionSelect.appendChild(opt);
             });
 
             if (estaciones.length === 1) {
                 const unica = estaciones[0];
                 estacionSelect.value = unica.id_estacion;
+                capacidadEstacionActual = Number(unica.capacidad_maxima) || 1000;
                 estacionActualSpan.textContent = unica.nombre;
                 localStorage.setItem(ULTIMA_ESTACION_KEY, unica.id_estacion);
                 cargarHistorial(unica.id_estacion);
@@ -74,10 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (ultimaId && estaciones.some(e => e.id_estacion == ultimaId)) {
                     estacionSelect.value = ultimaId;
                     const est = estaciones.find(e => e.id_estacion == ultimaId);
+                    capacidadEstacionActual = Number(est?.capacidad_maxima) || 1000;
                     estacionActualSpan.textContent = est ? est.nombre : 'Estación seleccionada';
                     cargarHistorial(ultimaId);
                 } else {
                     estacionSelect.value = estaciones[0].id_estacion;
+                    capacidadEstacionActual = Number(estaciones[0].capacidad_maxima) || 1000;
                     estacionActualSpan.textContent = estaciones[0].nombre;
                     localStorage.setItem(ULTIMA_ESTACION_KEY, estaciones[0].id_estacion);
                     cargarHistorial(estaciones[0].id_estacion);
@@ -93,7 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
     estacionSelect.addEventListener('change', () => {
         const id = estacionSelect.value;
         if (id) {
-            const nombre = estacionSelect.options[estacionSelect.selectedIndex].text;
+            const selectedOpt = estacionSelect.options[estacionSelect.selectedIndex];
+            const nombre = selectedOpt.text;
+            capacidadEstacionActual = Number(selectedOpt.dataset.capacidad) || 1000;
             estacionActualSpan.textContent = nombre;
             localStorage.setItem(ULTIMA_ESTACION_KEY, id);
             cargarHistorial(id);
@@ -107,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Función para actualizar el badge rojo (solo cuenta leido = FALSE)
     async function actualizarBadge() {
         try {
             const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
@@ -128,11 +135,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Abrir modal y cargar notificaciones ignoradas
     btnNotificaciones.addEventListener('click', async () => {
         modalNotificaciones.classList.remove('hidden');
         await cargarNotificacionesIgnoradas();
-        await actualizarBadge(); // Refrescar badge al abrir
+        await actualizarBadge();
     });
 
     cerrarModal.addEventListener('click', () => {
@@ -140,9 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     modalNotificaciones.addEventListener('click', (e) => {
-        if (e.target === modalNotificaciones) {
-            modalNotificaciones.classList.add('hidden');
-        }
+        if (e.target === modalNotificaciones) modalNotificaciones.classList.add('hidden');
     });
 
     async function cargarNotificacionesIgnoradas() {
@@ -191,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             renderHistorial(data);
             actualizarTarjetas(data, id_estacion);
+            actualizarAforoCard(data);
             verificarCongestion(data);
         } catch (err) {
             console.error("Error historial:", err);
@@ -207,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const neto = flujo.entrantes - flujo.salientes;
             aforoAcumulado += neto;
 
-            const porcAforo = (aforoAcumulado / CAPACIDAD_ESTACION) * 100;
+            const porcAforo = (aforoAcumulado / capacidadEstacionActual) * 100;
             let tendencia = porcAforo < 50 ? '↓ Baja' : porcAforo < 80 ? '↔ Media' : '↑ Alta';
             let color = porcAforo < 50 ? 'text-green-400' : porcAforo < 80 ? 'text-yellow-400' : 'text-red-400';
 
@@ -239,14 +244,30 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const totalHoy = flujos.reduce((sum, f) => sum + f.entrantes, 0);
+        const totalHoy = flujos.reduce((sum, f) => sum + Number(f.entrantes || 0), 0);
 
-        let pico = 0, picoHora = 0;
-        flujos.forEach(f => { if (f.entrantes > pico) { pico = f.entrantes; picoHora = f.hora; }});
-        const picoTexto = `${picoHora < 10 ? '0' : ''}${picoHora}:00 ${picoHora < 12 ? 'AM' : 'PM'}`;
+        let pico = 0;
+        let picoHora = 0;
+
+        flujos.forEach(f => {
+            const entrantesNum = Number(f.entrantes || 0);
+            if (entrantesNum > pico) {
+                pico = entrantesNum;
+                picoHora = Number(f.hora);
+            }
+        });
+
+        const formatHora = (h24) => {
+            const h = h24 % 24;
+            const ampm = h < 12 ? 'AM' : 'PM';
+            const hh = h % 12 || 12;
+            return `${hh < 10 ? '0' : ''}${hh}:00 ${ampm}`;
+        };
+
+        const picoTexto = formatHora(picoHora);
 
         const ultima = flujos[flujos.length - 1];
-        const ultimaValor = ultima.entrantes;
+        const ultimaValor = Number(ultima.entrantes || 0);
         const ultimaRango = `${ultima.hora < 10 ? '0' : ''}${ultima.hora}:00 - ${(ultima.hora + 1) % 24 < 10 ? '0' : ''}${(ultima.hora + 1) % 24}:00`;
 
         document.getElementById('totalHoyValor').textContent = totalHoy.toLocaleString('es-BO');
@@ -256,10 +277,63 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('picoHora').textContent = picoTexto;
     }
 
+    function actualizarAforoCard(flujos) {
+        if (!flujos || flujos.length === 0) {
+            document.getElementById('aforoActualValor').textContent = '0';
+            document.getElementById('aforoPorcentaje').textContent = '0';
+            document.getElementById('aforoProgressBar').style.width = '0%';
+            document.getElementById('aforoMensaje').classList.add('hidden');
+            document.getElementById('aforoStatus').innerHTML = '';
+            return;
+        }
+
+        let aforoActual = 0;
+        flujos.forEach(f => {
+            aforoActual += Number(f.entrantes || 0) - Number(f.salientes || 0);
+        });
+
+        const porc = capacidadEstacionActual > 0 
+            ? Math.min(100, Math.max(0, Math.round((aforoActual / capacidadEstacionActual) * 100))) 
+            : 0;
+
+        document.getElementById('aforoActualValor').textContent = aforoActual.toLocaleString('es-BO');
+        document.getElementById('capacidadValor').textContent = capacidadEstacionActual.toLocaleString('es-BO');
+        document.getElementById('aforoPorcentaje').textContent = porc;
+
+        const progressBar = document.getElementById('aforoProgressBar');
+        progressBar.style.width = `${porc}%`;
+
+        let mensaje = '';
+        let statusHTML = '';
+
+        if (porc < 70) {
+            progressBar.style.background = 'linear-gradient(to right, #10b981, #34d399)';
+            statusHTML = `<span class="bg-green-600 text-white px-6 py-1.5 rounded-full">Normal</span>`;
+            document.getElementById('aforoMensaje').classList.add('hidden');
+        } else if (porc < 90) {
+            progressBar.style.background = 'linear-gradient(to right, #eab308, #f59e0b)';
+            statusHTML = `<span class="bg-yellow-600 text-white px-6 py-1.5 rounded-full">Congestión Moderada</span>`;
+            mensaje = '⚠️ ¡Atención! Congestión moderada - Monitorear el flujo de pasajeros';
+            document.getElementById('aforoMensaje').classList.remove('hidden');
+            document.getElementById('aforoMensaje').innerHTML = mensaje;
+            document.getElementById('aforoMensaje').className = 'mt-6 text-center text-lg font-medium text-yellow-300';
+        } else {
+            progressBar.style.background = 'linear-gradient(to right, #ef4444, #f87171)';
+            statusHTML = `<span class="bg-red-600 text-white px-6 py-1.5 rounded-full">CRÍTICA</span>`;
+            mensaje = '🚨 ¡CONGESTIÓN CRÍTICA! Riesgo de saturación - Tomar medidas inmediatas';
+            document.getElementById('aforoMensaje').classList.remove('hidden');
+            document.getElementById('aforoMensaje').innerHTML = mensaje;
+            document.getElementById('aforoMensaje').className = 'mt-6 text-center text-lg font-medium text-red-300';
+            alertaCongestion.classList.remove('hidden');
+        }
+
+        document.getElementById('aforoStatus').innerHTML = statusHTML;
+    }
+
     function verificarCongestion(flujos) {
         let aforo = 0;
-        flujos.forEach(f => aforo += f.entrantes - f.salientes);
-        alertaCongestion.classList.toggle('hidden', aforo <= CAPACIDAD_ESTACION);
+        flujos.forEach(f => aforo += Number(f.entrantes || 0) - Number(f.salientes || 0));
+        alertaCongestion.classList.toggle('hidden', aforo <= capacidadEstacionActual);
     }
 
     async function simularYRegistrarFlujo(id_estacion) {
@@ -320,80 +394,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function confirmarCongestion() {
-        if (!tempCongestionData) return;
+async function confirmarCongestion() {
+    if (!tempCongestionData) return;
 
-        try {
-            const res = await fetch(`${API_URL}/api/confirmar-congestion`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    id_estacion: tempCongestionData.id_estacion,
-                    attemptedEntrantes: tempCongestionData.attemptedEntrantes
-                })
-            });
+    try {
+        const res = await fetch(`${API_URL}/api/confirmar-congestion`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                id_estacion: tempCongestionData.id_estacion,
+                attemptedEntrantes: tempCongestionData.attemptedEntrantes
+            })
+        });
 
-            const result = await res.json();
+        const result = await res.json();
 
-            if (res.ok && result.ok) {
-                alertaCongestionTarjeta.classList.add('hidden');
-                estadoSimulacion.textContent = 'Incidente y notificación registrados correctamente.';
-                cargarHistorial(estacionSelect.value);
-                await actualizarBadge(); // Actualizar badge después de confirmar
-            } else {
-                estadoSimulacion.textContent = result.message || 'Error al registrar incidente.';
-            }
-        } catch (err) {
-            console.error("Error confirmando congestión:", err);
-            estadoSimulacion.textContent = 'Error de conexión al confirmar.';
-        } finally {
-            tempCongestionData = null;
+        if (res.ok && result.ok) {
+            alertaCongestionTarjeta.classList.add('hidden');
+            estadoSimulacion.textContent = 'Congestión registrada como atendida y resuelta inmediatamente.';
+            cargarHistorial(estacionSelect.value);
+            // NO llamamos actualizarBadge() aquí → no se creó notificación
+        } else {
+            estadoSimulacion.textContent = result.message || 'Error al registrar el incidente.';
         }
+    } catch (err) {
+        console.error("Error confirmando congestión:", err);
+        estadoSimulacion.textContent = 'Error de conexión al confirmar.';
+    } finally {
+        tempCongestionData = null;
     }
+}
 
-    async function ignorarCongestion() {
-        if (!tempCongestionData) return;
+async function ignorarCongestion() {
+    if (!tempCongestionData) return;
 
-        try {
-            const res = await fetch(`${API_URL}/api/ignorar-congestion`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    id_estacion: tempCongestionData.id_estacion,
-                    attemptedEntrantes: tempCongestionData.attemptedEntrantes
-                })
-            });
+    try {
+        const res = await fetch(`${API_URL}/api/ignorar-congestion`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                id_estacion: tempCongestionData.id_estacion,
+                attemptedEntrantes: tempCongestionData.attemptedEntrantes
+            })
+        });
 
-            const result = await res.json();
+        const result = await res.json();
 
-            if (res.ok && result.ok) {
-                alertaCongestionTarjeta.classList.add('hidden');
-                estadoSimulacion.textContent = 'Congestión ignorada y registrada como pendiente.';
-                agregarNotificacionIgnorada(result);
-                await actualizarBadge(); // Actualizar badge inmediatamente después de ignorar
-            } else {
-                estadoSimulacion.textContent = result.message || 'Error al ignorar congestión.';
-            }
-        } catch (err) {
-            console.error("Error ignorando congestión:", err);
-            estadoSimulacion.textContent = 'Error de conexión al ignorar.';
-        } finally {
-            tempCongestionData = null;
+        if (res.ok && result.ok) {
+            alertaCongestionTarjeta.classList.add('hidden');
+            estadoSimulacion.textContent = 'Congestión ignorada y registrada como pendiente.';
+            agregarNotificacionIgnorada(result);   // ← solo aquí se agrega a la UI
+            await actualizarBadge();               // ← solo aquí se actualiza la campanita
+        } else {
+            estadoSimulacion.textContent = result.message || 'Error al ignorar congestión.';
         }
+    } catch (err) {
+        console.error("Error ignorando congestión:", err);
+        estadoSimulacion.textContent = 'Error de conexión al ignorar.';
+    } finally {
+        tempCongestionData = null;
     }
+}
 
     function agregarNotificacionIgnorada(data) {
         sinIgnoradas.classList.add('hidden');
 
         const card = document.createElement('div');
         card.className = 'bg-red-900/60 backdrop-blur-xl border border-red-700/50 rounded-xl p-5 shadow-lg';
-        card.setAttribute('data-id-notif', data.id_notificacion); // Para identificarla si quieres
+        card.setAttribute('data-id-notif', data.id_notificacion);
         card.innerHTML = `
             <div class="flex items-center gap-3 mb-3">
                 <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -415,7 +489,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ignoradasContainer.appendChild(card);
 
-        // Listener para SOLUCIONAR
         card.querySelector('.solucionar-btn').addEventListener('click', async function() {
             const btn = this;
             const idNotif = btn.dataset.idNotif;
@@ -440,13 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.classList.add('bg-gray-500', 'cursor-not-allowed');
                     estadoSimulacion.textContent = 'Notificación marcada como solucionada.';
                     
-                    // Eliminar tarjeta y actualizar badge/badge después de 1.5s
                     setTimeout(async () => {
                         card.remove();
                         if (ignoradasContainer.children.length === 0) {
                             sinIgnoradas.classList.remove('hidden');
                         }
-                        await actualizarBadge(); // Actualizar badge después de eliminar
+                        await actualizarBadge();
                     }, 1500);
                 } else {
                     estadoSimulacion.textContent = result.message || 'Error al solucionar.';
@@ -480,8 +552,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnConfirmarCongestion.addEventListener('click', confirmarCongestion);
     btnIgnorarCongestion.addEventListener('click', ignorarCongestion);
 
-    // Inicializar badge al cargar la página
     actualizarBadge();
-
     cargarEstaciones();
 });

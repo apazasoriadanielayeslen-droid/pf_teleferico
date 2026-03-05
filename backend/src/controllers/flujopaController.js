@@ -107,59 +107,56 @@ const registrarFlujo = async (req, res) => {
     }
 };
 
+// ---------------------
+// CONFIRMAR CONGESTIÓN
+// ---------------------
 const confirmarCongestion = async (req, res) => {
     const { id_estacion, attemptedEntrantes } = req.body;
     const id_personal = req.user.id;
 
-    if (!id_estacion || !attemptedEntrantes || !id_personal) {
-        return res.status(400).json({ ok: false, message: "Faltan datos requeridos" });
+    if (!id_estacion || attemptedEntrantes == null || !id_personal) {
+        return res.status(400).json({ 
+            ok: false, 
+            message: "Faltan datos requeridos (id_estacion y attemptedEntrantes)" 
+        });
     }
 
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
 
+        // Solo incidente – marcado como RESUELTO desde el inicio
         const [incResult] = await conn.execute(`
             INSERT INTO incidentes 
-            (titulo, tipo, nivel_criticidad, descripcion, id_estacion, id_reportado_por, estado)
-            VALUES (?, 'OPERATIVO', 'MEDIO', ?, ?, ?, 'ABIERTO')
+            (titulo, tipo, nivel_criticidad, descripcion, id_estacion, id_reportado_por, estado, fecha_actualizacion)
+            VALUES (?, 'OPERATIVO', 'MEDIO', ?, ?, ?, 'RESUELTO', NOW())
         `, [
-            `Congestión detectada - Estación ${id_estacion}`,
-            `Intento de ingreso de ${attemptedEntrantes} pasajeros (límite 10 por intervalo/cabina)`,
+            `Congestión atendida inmediatamente - Estación ${id_estacion}`,
+            `Intento de ingreso de ${attemptedEntrantes} pasajeros (límite 10 por intervalo/cabina). Operador confirmó y atendió en el momento.`,
             id_estacion,
             id_personal
-        ]);
-        const idIncidente = incResult.insertId;
-
-        const [notifResult] = await conn.execute(`
-            INSERT INTO notificaciones 
-            (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
-            VALUES (?, ?, ?, 'CONGESTION', 'PENDIENTE', FALSE, ?)
-        `, [
-            id_personal,
-            "Congestión detectada",
-            `Estación ${id_estacion}: intento de ${attemptedEntrantes} pasajeros en un intervalo (límite 10)`,
-            idIncidente
         ]);
 
         await conn.commit();
 
         res.json({
             ok: true,
-            message: "Incidente y notificación registrados",
-            id_incidente: idIncidente,
-            id_notificacion: notifResult.insertId
+            message: "Congestión registrada como atendida y resuelta",
+            id_incidente: incResult.insertId
         });
 
     } catch (err) {
         await conn.rollback();
         console.error("Error al confirmar congestión:", err);
-        res.status(500).json({ ok: false, message: "Error al registrar congestión" });
+        res.status(500).json({ ok: false, message: "Error interno al registrar incidente" });
     } finally {
         conn.release();
     }
 };
 
+// ---------------------
+// IGNORAR CONGESTIÓN
+// ---------------------
 const ignorarCongestion = async (req, res) => {
     const { id_estacion, attemptedEntrantes } = req.body;
     const id_personal = req.user.id;
@@ -172,6 +169,7 @@ const ignorarCongestion = async (req, res) => {
     try {
         await conn.beginTransaction();
 
+        // Creamos INCIDENTE
         const [incResult] = await conn.execute(`
             INSERT INTO incidentes 
             (titulo, tipo, nivel_criticidad, descripcion, id_estacion, id_reportado_por, estado)
@@ -184,6 +182,7 @@ const ignorarCongestion = async (req, res) => {
         ]);
         const idIncidente = incResult.insertId;
 
+        // Creamos NOTIFICACIÓN (solo aquí aparece en la campanita)
         const [notifResult] = await conn.execute(`
             INSERT INTO notificaciones 
             (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
@@ -191,7 +190,7 @@ const ignorarCongestion = async (req, res) => {
         `, [
             id_personal,
             "Congestión ignorada",
-            `Estación ${id_estacion}: intento de ${attemptedEntrantes} pasajeros ignorado`,
+            `Estación ${id_estacion}: intento de ${attemptedEntrantes} pasajeros ignorado (revisar)`,
             idIncidente
         ]);
 
@@ -202,7 +201,7 @@ const ignorarCongestion = async (req, res) => {
             message: "Congestión registrada como ignorada",
             id_incidente: idIncidente,
             id_notificacion: notifResult.insertId,
-            estacion: id_estacion,
+            estacion: id_estacion,              // para mostrar en frontend
             attemptedEntrantes
         });
 
@@ -214,7 +213,6 @@ const ignorarCongestion = async (req, res) => {
         conn.release();
     }
 };
-
 const solucionarNotificacion = async (req, res) => {
     const { id_notificacion, id_incidente } = req.body;
 
@@ -268,6 +266,7 @@ const getFlujoHoy = async (req, res) => {
             FROM flujo_pasajeros
             WHERE id_estacion = ? 
               AND DATE(fecha) = CURDATE()
+              AND HOUR(fecha) BETWEEN 5 AND 23          -- ← HORARIO OPERATIVO
             GROUP BY HOUR(fecha)
             ORDER BY hora ASC
         `, [id_estacion]);
