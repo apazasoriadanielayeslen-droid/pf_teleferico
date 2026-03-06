@@ -266,7 +266,7 @@ const getFlujoHoy = async (req, res) => {
             FROM flujo_pasajeros
             WHERE id_estacion = ? 
               AND DATE(fecha) = CURDATE()
-              AND HOUR(fecha) BETWEEN 5 AND 23          -- ← HORARIO OPERATIVO
+              AND HOUR(fecha) BETWEEN 0 AND 23          -- ← HORARIO OPERATIVO
             GROUP BY HOUR(fecha)
             ORDER BY hora ASC
         `, [id_estacion]);

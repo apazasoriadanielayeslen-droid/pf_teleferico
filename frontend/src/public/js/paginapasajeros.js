@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Elementos del DOM
     const estacionSelect = document.getElementById('estacionSelect');
     const toggleSimulacionBtn = document.getElementById('toggleSimulacionBtn');
     const historialTbody = document.getElementById('historialTbody');
@@ -34,13 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_ENTRADA_POR_HORA = 4500;
 
     let capacidadEstacionActual = 1000;
-
     const ULTIMA_ESTACION_KEY = 'ultima_estacion_seleccionada';
+    const SIMULACION_ACTIVA_KEY = 'simulacionActiva';
+    const SIMULACION_ESTACION_KEY = 'simulacionEstacionId';
 
     let simulacionTimeout = null;
     let simulacionActiva = false;
     let tempCongestionData = null;
 
+    // ────────────────────────────────────────────────
+    // Funciones básicas
+    // ────────────────────────────────────────────────
     function actualizarHora() {
         const now = new Date();
         horaActualSpan.textContent = now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
@@ -48,6 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarHora();
     setInterval(actualizarHora, 60000);
 
+    // ────────────────────────────────────────────────
+    // Cargar estaciones y seleccionar la última
+    // ────────────────────────────────────────────────
     async function cargarEstaciones() {
         try {
             const res = await fetch(`${API_URL}/api/estaciones`, {
@@ -66,28 +74,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 estacionSelect.appendChild(opt);
             });
 
-            if (estaciones.length === 1) {
-                const unica = estaciones[0];
-                estacionSelect.value = unica.id_estacion;
-                capacidadEstacionActual = Number(unica.capacidad_maxima) || 1000;
-                estacionActualSpan.textContent = unica.nombre;
-                localStorage.setItem(ULTIMA_ESTACION_KEY, unica.id_estacion);
-                cargarHistorial(unica.id_estacion);
-            } else if (estaciones.length > 1) {
-                const ultimaId = localStorage.getItem(ULTIMA_ESTACION_KEY);
-                if (ultimaId && estaciones.some(e => e.id_estacion == ultimaId)) {
-                    estacionSelect.value = ultimaId;
-                    const est = estaciones.find(e => e.id_estacion == ultimaId);
-                    capacidadEstacionActual = Number(est?.capacidad_maxima) || 1000;
-                    estacionActualSpan.textContent = est ? est.nombre : 'Estación seleccionada';
-                    cargarHistorial(ultimaId);
-                } else {
-                    estacionSelect.value = estaciones[0].id_estacion;
-                    capacidadEstacionActual = Number(estaciones[0].capacidad_maxima) || 1000;
-                    estacionActualSpan.textContent = estaciones[0].nombre;
-                    localStorage.setItem(ULTIMA_ESTACION_KEY, estaciones[0].id_estacion);
-                    cargarHistorial(estaciones[0].id_estacion);
-                }
+            // Seleccionar última estación guardada o la primera
+            let idSeleccionada;
+            const ultimaId = localStorage.getItem(ULTIMA_ESTACION_KEY);
+
+            if (ultimaId && estaciones.some(e => e.id_estacion == ultimaId)) {
+                idSeleccionada = ultimaId;
+            } else if (estaciones.length > 0) {
+                idSeleccionada = estaciones[0].id_estacion;
+                localStorage.setItem(ULTIMA_ESTACION_KEY, idSeleccionada);
+            }
+
+            if (idSeleccionada) {
+                estacionSelect.value = idSeleccionada;
+                const est = estaciones.find(e => e.id_estacion == idSeleccionada);
+                capacidadEstacionActual = Number(est?.capacidad_maxima) || 1000;
+                estacionActualSpan.textContent = est?.nombre || 'Estación seleccionada';
+                cargarHistorial(idSeleccionada);
             }
         } catch (err) {
             console.error("Error estaciones:", err);
@@ -96,6 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ────────────────────────────────────────────────
+    // Cambio de estación → cargar datos + detener simulación si estaba activa
+    // ────────────────────────────────────────────────
     estacionSelect.addEventListener('change', () => {
         const id = estacionSelect.value;
         if (id) {
@@ -105,7 +111,18 @@ document.addEventListener('DOMContentLoaded', () => {
             estacionActualSpan.textContent = nombre;
             localStorage.setItem(ULTIMA_ESTACION_KEY, id);
             cargarHistorial(id);
-            if (simulacionActiva) toggleSimulacionBtn.click();
+
+            // Si la simulación estaba activa → la detenemos al cambiar estación
+            if (simulacionActiva) {
+                simulacionActiva = false;
+                toggleSimulacionBtn.textContent = 'Iniciar Simulación';
+                toggleSimulacionBtn.classList.remove('bg-emerald-600');
+                estadoSimulacion.textContent = 'Simulación detenida por cambio de estación';
+                clearTimeout(simulacionTimeout);
+                localStorage.setItem(SIMULACION_ACTIVA_KEY, 'false');
+                localStorage.removeItem(SIMULACION_ESTACION_KEY);
+            }
+
             alertaCongestionTarjeta.classList.add('hidden');
         } else {
             estacionActualSpan.textContent = 'Seleccione una estación';
@@ -115,6 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ────────────────────────────────────────────────
+    // Resto de funciones (actualizarBadge, notificaciones, historial, etc.)
+    // ────────────────────────────────────────────────
     async function actualizarBadge() {
         try {
             const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
@@ -141,10 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await actualizarBadge();
     });
 
-    cerrarModal.addEventListener('click', () => {
-        modalNotificaciones.classList.add('hidden');
-    });
-
+    cerrarModal.addEventListener('click', () => modalNotificaciones.classList.add('hidden'));
     modalNotificaciones.addEventListener('click', (e) => {
         if (e.target === modalNotificaciones) modalNotificaciones.classList.add('hidden');
     });
@@ -316,14 +333,14 @@ document.addEventListener('DOMContentLoaded', () => {
             mensaje = '⚠️ ¡Atención! Congestión moderada - Monitorear el flujo de pasajeros';
             document.getElementById('aforoMensaje').classList.remove('hidden');
             document.getElementById('aforoMensaje').innerHTML = mensaje;
-            document.getElementById('aforoMensaje').className = 'mt-6 text-center text-lg font-medium text-yellow-300';
+            document.getElementById('aforoMensaje').className = 'mt-5 text-center text-base md:text-lg font-medium text-yellow-300';
         } else {
             progressBar.style.background = 'linear-gradient(to right, #ef4444, #f87171)';
             statusHTML = `<span class="bg-red-600 text-white px-6 py-1.5 rounded-full">CRÍTICA</span>`;
             mensaje = '🚨 ¡CONGESTIÓN CRÍTICA! Riesgo de saturación - Tomar medidas inmediatas';
             document.getElementById('aforoMensaje').classList.remove('hidden');
             document.getElementById('aforoMensaje').innerHTML = mensaje;
-            document.getElementById('aforoMensaje').className = 'mt-6 text-center text-lg font-medium text-red-300';
+            document.getElementById('aforoMensaje').className = 'mt-5 text-center text-base md:text-lg font-medium text-red-300';
             alertaCongestion.classList.remove('hidden');
         }
 
@@ -336,6 +353,9 @@ document.addEventListener('DOMContentLoaded', () => {
         alertaCongestion.classList.toggle('hidden', aforo <= capacidadEstacionActual);
     }
 
+    // ────────────────────────────────────────────────
+    // SIMULACIÓN - Función principal de registro
+    // ────────────────────────────────────────────────
     async function simularYRegistrarFlujo(id_estacion) {
         let entrantes = Math.floor(Math.random() * 4);
         let salientes = Math.floor(Math.random() * (entrantes + 1));
@@ -394,73 +414,75 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-async function confirmarCongestion() {
-    if (!tempCongestionData) return;
+    // ────────────────────────────────────────────────
+    // Confirmar / Ignorar congestión (sin cambios)
+    // ────────────────────────────────────────────────
+    async function confirmarCongestion() {
+        if (!tempCongestionData) return;
 
-    try {
-        const res = await fetch(`${API_URL}/api/confirmar-congestion`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                id_estacion: tempCongestionData.id_estacion,
-                attemptedEntrantes: tempCongestionData.attemptedEntrantes
-            })
-        });
+        try {
+            const res = await fetch(`${API_URL}/api/confirmar-congestion`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id_estacion: tempCongestionData.id_estacion,
+                    attemptedEntrantes: tempCongestionData.attemptedEntrantes
+                })
+            });
 
-        const result = await res.json();
+            const result = await res.json();
 
-        if (res.ok && result.ok) {
-            alertaCongestionTarjeta.classList.add('hidden');
-            estadoSimulacion.textContent = 'Congestión registrada como atendida y resuelta inmediatamente.';
-            cargarHistorial(estacionSelect.value);
-            // NO llamamos actualizarBadge() aquí → no se creó notificación
-        } else {
-            estadoSimulacion.textContent = result.message || 'Error al registrar el incidente.';
+            if (res.ok && result.ok) {
+                alertaCongestionTarjeta.classList.add('hidden');
+                estadoSimulacion.textContent = 'Congestión registrada como atendida y resuelta inmediatamente.';
+                cargarHistorial(estacionSelect.value);
+            } else {
+                estadoSimulacion.textContent = result.message || 'Error al registrar el incidente.';
+            }
+        } catch (err) {
+            console.error("Error confirmando congestión:", err);
+            estadoSimulacion.textContent = 'Error de conexión al confirmar.';
+        } finally {
+            tempCongestionData = null;
         }
-    } catch (err) {
-        console.error("Error confirmando congestión:", err);
-        estadoSimulacion.textContent = 'Error de conexión al confirmar.';
-    } finally {
-        tempCongestionData = null;
     }
-}
 
-async function ignorarCongestion() {
-    if (!tempCongestionData) return;
+    async function ignorarCongestion() {
+        if (!tempCongestionData) return;
 
-    try {
-        const res = await fetch(`${API_URL}/api/ignorar-congestion`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                id_estacion: tempCongestionData.id_estacion,
-                attemptedEntrantes: tempCongestionData.attemptedEntrantes
-            })
-        });
+        try {
+            const res = await fetch(`${API_URL}/api/ignorar-congestion`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id_estacion: tempCongestionData.id_estacion,
+                    attemptedEntrantes: tempCongestionData.attemptedEntrantes
+                })
+            });
 
-        const result = await res.json();
+            const result = await res.json();
 
-        if (res.ok && result.ok) {
-            alertaCongestionTarjeta.classList.add('hidden');
-            estadoSimulacion.textContent = 'Congestión ignorada y registrada como pendiente.';
-            agregarNotificacionIgnorada(result);   // ← solo aquí se agrega a la UI
-            await actualizarBadge();               // ← solo aquí se actualiza la campanita
-        } else {
-            estadoSimulacion.textContent = result.message || 'Error al ignorar congestión.';
+            if (res.ok && result.ok) {
+                alertaCongestionTarjeta.classList.add('hidden');
+                estadoSimulacion.textContent = 'Congestión ignorada y registrada como pendiente.';
+                agregarNotificacionIgnorada(result);
+                await actualizarBadge();
+            } else {
+                estadoSimulacion.textContent = result.message || 'Error al ignorar congestión.';
+            }
+        } catch (err) {
+            console.error("Error ignorando congestión:", err);
+            estadoSimulacion.textContent = 'Error de conexión al ignorar.';
+        } finally {
+            tempCongestionData = null;
         }
-    } catch (err) {
-        console.error("Error ignorando congestión:", err);
-        estadoSimulacion.textContent = 'Error de conexión al ignorar.';
-    } finally {
-        tempCongestionData = null;
     }
-}
 
     function agregarNotificacionIgnorada(data) {
         sinIgnoradas.classList.add('hidden');
@@ -530,6 +552,9 @@ async function ignorarCongestion() {
         });
     }
 
+    // ────────────────────────────────────────────────
+    // Botón Iniciar/Detener Simulación + GUARDAR ESTADO
+    // ────────────────────────────────────────────────
     toggleSimulacionBtn.addEventListener('click', () => {
         const id_estacion = estacionSelect.value;
         if (!id_estacion) return alert("Seleccione una estación primero");
@@ -540,11 +565,21 @@ async function ignorarCongestion() {
             toggleSimulacionBtn.textContent = 'Detener Simulación';
             toggleSimulacionBtn.classList.add('bg-emerald-600');
             estadoSimulacion.textContent = 'Simulación activa...';
+
+            // Guardar estado en localStorage
+            localStorage.setItem(SIMULACION_ACTIVA_KEY, 'true');
+            localStorage.setItem(SIMULACION_ESTACION_KEY, id_estacion);
+
             simularYRegistrarFlujo(id_estacion);
         } else {
             toggleSimulacionBtn.textContent = 'Iniciar Simulación';
             toggleSimulacionBtn.classList.remove('bg-emerald-600');
             estadoSimulacion.textContent = 'Simulación detenida.';
+
+            // Limpiar estado guardado
+            localStorage.setItem(SIMULACION_ACTIVA_KEY, 'false');
+            localStorage.removeItem(SIMULACION_ESTACION_KEY);
+
             clearTimeout(simulacionTimeout);
         }
     });
@@ -552,6 +587,45 @@ async function ignorarCongestion() {
     btnConfirmarCongestion.addEventListener('click', confirmarCongestion);
     btnIgnorarCongestion.addEventListener('click', ignorarCongestion);
 
+    // ────────────────────────────────────────────────
+    // Restaurar simulación al cargar la página
+    // ────────────────────────────────────────────────
+    const simulacionGuardada = localStorage.getItem(SIMULACION_ACTIVA_KEY) === 'true';
+    const estacionGuardada = localStorage.getItem(SIMULACION_ESTACION_KEY);
+
+    if (simulacionGuardada && estacionGuardada) {
+        // Esperamos un momento a que se carguen las estaciones
+        setTimeout(() => {
+            if (estacionSelect.options.length > 1) {  // ya cargadas
+                if (estacionSelect.querySelector(`option[value="${estacionGuardada}"]`)) {
+                    estacionSelect.value = estacionGuardada;
+                    // Disparamos evento change para actualizar todo
+                    const changeEvent = new Event('change');
+                    estacionSelect.dispatchEvent(changeEvent);
+
+                    simulacionActiva = true;
+                    toggleSimulacionBtn.textContent = 'Detener Simulación';
+                    toggleSimulacionBtn.classList.add('bg-emerald-600');
+                    estadoSimulacion.textContent = 'Simulación restaurada automáticamente';
+
+                    simularYRegistrarFlujo(estacionGuardada);
+                } else {
+                    estadoSimulacion.textContent = 'Estación anterior no disponible. Seleccione una nueva.';
+                    localStorage.setItem(SIMULACION_ACTIVA_KEY, 'false');
+                    localStorage.removeItem(SIMULACION_ESTACION_KEY);
+                }
+            }
+        }, 800); // pequeño retraso para dar tiempo a cargar estaciones
+    }
+
+    // Limpieza al salir de la página
+    window.addEventListener('beforeunload', () => {
+        if (simulacionActiva) {
+            clearTimeout(simulacionTimeout);
+        }
+    });
+
+    // Inicio
     actualizarBadge();
     cargarEstaciones();
 });
