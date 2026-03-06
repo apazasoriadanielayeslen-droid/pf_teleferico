@@ -316,23 +316,24 @@ const getNotificacionesIgnoradas = async (req, res) => {
 
     const conn = await pool.getConnection();
     try {
-        const [rows] = await conn.execute(`
-            SELECT 
-                n.id_notificacion, 
-                n.titulo, 
-                n.mensaje, 
-                n.fecha, 
-                n.estado, 
-                e.nombre AS estacion
-            FROM notificaciones n
-            LEFT JOIN incidentes i ON n.id_incidente = i.id_incidente
-            LEFT JOIN estaciones e ON i.id_estacion = e.id_estacion
-            WHERE n.id_personal = ? 
-              AND n.tipo = 'CONGESTION' 
-              AND n.leido = FALSE
-              AND n.estado = 'PENDIENTE'
-            ORDER BY n.fecha DESC
-        `, [id_personal]);
+const [rows] = await conn.execute(`
+    SELECT 
+        n.id_notificacion, 
+        n.id_incidente,                    -- ← AGREGAR ESTA LÍNEA
+        n.titulo, 
+        n.mensaje, 
+        n.fecha, 
+        n.estado, 
+        e.nombre AS estacion
+    FROM notificaciones n
+    LEFT JOIN incidentes i ON n.id_incidente = i.id_incidente
+    LEFT JOIN estaciones e ON i.id_estacion = e.id_estacion
+    WHERE n.id_personal = ? 
+      AND n.tipo = 'CONGESTION' 
+      AND n.leido = FALSE
+      AND n.estado = 'PENDIENTE'
+    ORDER BY n.fecha DESC
+`, [id_personal]);
 
         res.json(rows);
     } catch (err) {

@@ -471,8 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok && result.ok) {
                 alertaCongestionTarjeta.classList.add('hidden');
                 estadoSimulacion.textContent = 'Congestión ignorada y registrada como pendiente.';
-                agregarNotificacionIgnorada(result);
-                await actualizarBadge();
+await cargarNotificacionesPendientesPagina();
+await actualizarBadge();
             } else {
                 estadoSimulacion.textContent = result.message || 'Error al ignorar congestión.';
             }
@@ -552,6 +552,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
+
+    // ====================== NUEVA FUNCIÓN (la que faltaba) ======================
+async function cargarNotificacionesPendientesPagina() {
+    try {
+        const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Error servidor');
+        
+        const notifs = await res.json();
+        ignoradasContainer.innerHTML = '';
+
+        if (notifs.length === 0) {
+            sinIgnoradas.classList.remove('hidden');
+            return;
+        }
+
+        sinIgnoradas.classList.add('hidden');
+
+        notifs.forEach(notif => {
+            const dataParaTarjeta = {
+                id_notificacion: notif.id_notificacion,
+                id_incidente: notif.id_incidente,
+                estacion: notif.estacion || 'Desconocida',
+                attemptedEntrantes: parseInt(notif.mensaje.match(/\d+/)?.[0]) || 0
+            };
+            agregarNotificacionIgnorada(dataParaTarjeta);
+        });
+
+    } catch (err) {
+        console.error("Error cargando tarjetas pendientes:", err);
+    }
+}
+
+
+
+
+
+
+
+
     // ────────────────────────────────────────────────
     // Botón Iniciar/Detener Simulación + GUARDAR ESTADO
     // ────────────────────────────────────────────────
@@ -628,4 +670,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicio
     actualizarBadge();
     cargarEstaciones();
+    cargarNotificacionesPendientesPagina();
 });

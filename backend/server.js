@@ -10,6 +10,7 @@ const supervisorRoutes = require('./src/routes/supervisor');
 const maintRoutes = require('./src/routes/maintenance');
 const estacionesRouter = require('./src/routes/estaciones');
 const flujopaCtrl = require('./src/controllers/flujopaController');
+const incidentesRouter = require('./src/routes/incidentes');
 
 // Middleware de autenticación
 const { verificarToken } = require('./src/middlewares/mauth');
@@ -38,7 +39,7 @@ app.post('/api/ignorar-congestion', verificarToken, flujopaCtrl.ignorarCongestio
 app.post('/api/notificaciones/solucionar', verificarToken, flujopaCtrl.solucionarNotificacion);
 app.get('/api/notificaciones/ignoradas', verificarToken, flujopaCtrl.getNotificacionesIgnoradas);
 
-
+app.use('/api/incidentes', incidentesRouter);
 
 // Ruta de prueba
 app.get("/", (req, res) => {

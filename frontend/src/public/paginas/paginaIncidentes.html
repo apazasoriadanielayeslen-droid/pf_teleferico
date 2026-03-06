@@ -11,7 +11,7 @@
 </head>
 <body class="min-h-screen text-white flex">
 
-  <!-- Menú lateral (igual que en la otra página) -->
+  <!-- Menú lateral (sin cambios) -->
   <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
     <div class="p-6 border-b border-teal-700/50">
       <div class="flex items-center gap-3">
@@ -77,102 +77,107 @@
       <!-- Barra de búsqueda y botón nuevo -->
       <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
         <input type="text" placeholder="Buscar incidentes..." class="w-full md:w-96 bg-white/10 border border-white/20 rounded-xl px-5 py-3 focus:outline-none focus:border-teal-400 placeholder-gray-400">
-        <button class="w-full md:w-auto bg-orange-600 hover:bg-orange-500 px-6 py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
+        <button id="btnNuevoIncidente" class="w-full md:w-auto bg-orange-600 hover:bg-orange-500 px-6 py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
           <span>+ Nuevo Incidente</span>
         </button>
       </div>
 
       <!-- Tarjetas resumen -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
           <p class="text-sm text-gray-300">Total Incidentes</p>
-          <p class="text-3xl font-bold mt-1">24</p>
+          <p id="totalIncidentes" class="text-3xl font-bold mt-1">0</p>
         </div>
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
           <p class="text-sm text-gray-300">Abiertos</p>
-          <p class="text-3xl font-bold mt-1">5</p>
+          <p id="abiertos" class="text-3xl font-bold mt-1">0</p>
         </div>
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
           <p class="text-sm text-gray-300">En Proceso</p>
-          <p class="text-3xl font-bold mt-1">3</p>
+          <p id="enProceso" class="text-3xl font-bold mt-1">0</p>
         </div>
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Resueltos Hoy</p>
-          <p class="text-3xl font-bold mt-1">6</p>
+          <p class="text-sm text-gray-300">Resueltos</p>
+          <p id="resueltos" class="text-3xl font-bold mt-1">0</p>
         </div>
       </div>
 
-      <!-- Lista de incidentes recientes -->
+      <!-- Incidentes recientes (solo ABIERTO y EN_PROCESO) -->
       <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-        <h2 class="text-2xl font-bold mb-6">Incidentes Recientes</h2>
-        <div class="space-y-4">
-          <div class="bg-white/5 border border-yellow-600/40 rounded-xl p-5 hover:bg-white/10 transition">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="flex items-center gap-3">
-                  <span class="text-yellow-400 text-xl">⚠</span>
-                  <h3 class="font-semibold">Retraso en Estación Norte #INC001</h3>
-                </div>
-                <p class="text-sm text-gray-400 mt-1">Estación Norte • 08:45 AM • María González</p>
-              </div>
-              <div class="text-right">
-                <span class="px-3 py-1 bg-yellow-800/50 text-yellow-300 rounded-full text-sm">Media</span>
-                <p class="text-xs text-gray-400 mt-2">En Proceso</p>
-              </div>
-            </div>
-            <div class="mt-3 flex gap-4 text-sm">
-              <button class="text-teal-300 hover:text-teal-200">Ver Detalles</button>
-              <button class="text-teal-300 hover:text-teal-200">Actualizar</button>
-            </div>
-          </div>
-
-          <div class="bg-white/5 border border-red-600/40 rounded-xl p-5 hover:bg-white/10 transition">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="flex items-center gap-3">
-                  <span class="text-red-400 text-xl">⚠</span>
-                  <h3 class="font-semibold">Cabina 15 sin energía #INC002</h3>
-                </div>
-                <p class="text-sm text-gray-400 mt-1">Sector Centro • 07:30 AM • Roberto Vargas</p>
-              </div>
-              <div class="text-right">
-                <span class="px-3 py-1 bg-red-800/50 text-red-300 rounded-full text-sm">Alta</span>
-                <p class="text-xs text-gray-400 mt-2">Resuelto</p>
-              </div>
-            </div>
-            <div class="mt-3 flex gap-4 text-sm">
-              <button class="text-teal-300 hover:text-teal-200">Ver Detalles</button>
-              <button class="text-teal-300 hover:text-teal-200">Actualizar</button>
-            </div>
-          </div>
-
-          <div class="bg-white/5 border border-blue-600/40 rounded-xl p-5 hover:bg-white/10 transition">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="flex items-center gap-3">
-                  <span class="text-blue-400 text-xl">△</span>
-                  <h3 class="font-semibold">Afluencia excesiva #INC003</h3>
-                </div>
-                <p class="text-sm text-gray-400 mt-1">Estación Centro • 10:15 AM • Carlos Ramírez</p>
-              </div>
-              <div class="text-right">
-                <span class="px-3 py-1 bg-blue-800/50 text-blue-300 rounded-full text-sm">Baja</span>
-                <p class="text-xs text-gray-400 mt-2">Abierto</p>
-              </div>
-            </div>
-            <div class="mt-3 flex gap-4 text-sm">
-              <button class="text-teal-300 hover:text-teal-200">Ver Detalles</button>
-              <button class="text-teal-300 hover:text-teal-200">Actualizar</button>
-            </div>
-          </div>
+        <h2 class="text-2xl font-bold mb-6">Incidentes Recientes (Abiertos / En Proceso)</h2>
+        <div id="incidentesRecientes" class="space-y-4 min-h-[200px]">
+          <p id="cargandoIncidentes" class="text-center text-gray-400">Cargando incidentes...</p>
+          <p id="sinIncidentes" class="text-center text-gray-400 hidden">No hay incidentes abiertos o en proceso en tus estaciones asignadas.</p>
         </div>
       </div>
 
     </div>
+
   </main>
 
-</div>
+  <!-- Modal para nuevo incidente -->
+  <div id="modalNuevoIncidente" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-teal-950/90 border border-teal-700/50 rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b border-teal-700/50 flex justify-between items-center">
+        <h2 class="text-2xl font-bold">Reportar Nuevo Incidente</h2>
+        <button id="btnCerrarModal" class="text-teal-300 hover:text-white text-2xl">×</button>
+      </div>
 
-<script src="../js/dashboardOperador.js"></script>
+      <form id="formNuevoIncidente" class="p-6 space-y-5">
+        <div>
+          <label class="block text-sm text-teal-200 mb-1">Título *</label>
+          <input type="text" name="titulo" required class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400" placeholder="Ej: Cabina 08 atascada en Estación Sur">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label class="block text-sm text-teal-200 mb-1">Tipo *</label>
+            <select name="tipo" required class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
+              <option value="">Seleccionar...</option>
+              <option value="OPERATIVO">Operativo</option>
+              <option value="TECNICO">Técnico</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-teal-200 mb-1">Nivel de Criticidad *</label>
+            <select name="nivel_criticidad" required class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
+              <option value="">Seleccionar...</option>
+              <option value="BAJO">Bajo</option>
+              <option value="MEDIO">Medio</option>
+              <option value="ALTO">Alto</option>
+              <option value="CRITICO">Crítico</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm text-teal-200 mb-1">Estación afectada</label>
+          <select name="id_estacion" id="selectEstacion" class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
+            <option value="">-- Seleccionar estación --</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-teal-200 mb-1">Cabina (opcional)</label>
+          <select name="id_cabina" id="selectCabina" disabled class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
+            <option value="">-- Primero selecciona estación --</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-teal-200 mb-1">Descripción detallada *</label>
+          <textarea name="descripcion" required rows="5" class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400" placeholder="Describe qué ocurrió..."></textarea>
+        </div>
+
+        <div class="flex justify-end gap-4 pt-4 border-t border-teal-700/30">
+          <button type="button" id="btnCancelar" class="px-6 py-3 bg-gray-700/50 hover:bg-gray-600 rounded-lg transition">Cancelar</button>
+          <button type="submit" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded-lg font-medium transition">Reportar Incidente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/pagina_incidente.js"></script>
+  <script src="../js/dashboardOperador.js"></script>
 </body>
 </html>
