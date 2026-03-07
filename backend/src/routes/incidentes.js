@@ -6,22 +6,37 @@ const db = require('../config/conexion');
 const { verificarToken } = require('../middlewares/mauth');
 
 // GET /api/incidentes/resumen (tarjetas)
+// GET /api/incidentes/resumen?estacion=123 (opcional)
 router.get('/resumen', verificarToken, async (req, res) => {
   const id_personal = req.user.id_personal || req.user.id;
+  const { estacion } = req.query;  // parámetro opcional ?estacion=ID
 
   try {
-    const [estaciones] = await db.query(`
-      SELECT id_estacion FROM personal_estacion 
+    // 1. Obtener estaciones asignadas al operador
+    const [asignadas] = await db.query(`
+      SELECT id_estacion 
+      FROM personal_estacion 
       WHERE id_personal = ? AND estado = 'ACTIVO'
     `, [id_personal]);
 
-    if (estaciones.length === 0) {
+    if (asignadas.length === 0) {
       return res.json({ total: 0, abiertos: 0, en_proceso: 0, resueltos: 0 });
     }
 
-    const ids = estaciones.map(e => e.id_estacion);
-    const placeholders = ids.map(() => '?').join(',');
+    let idsEstaciones = asignadas.map(e => e.id_estacion);
 
+    // 2. Si se pasó ?estacion → usar SOLO esa (si está asignada)
+    if (estacion) {
+      const idEst = Number(estacion);
+      if (isNaN(idEst) || !idsEstaciones.includes(idEst)) {
+        // Estación inválida o no asignada → mostrar 0 (o puedes devolver error 403)
+        return res.json({ total: 0, abiertos: 0, en_proceso: 0, resueltos: 0 });
+      }
+      idsEstaciones = [idEst];
+    }
+
+    // 3. Contar incidentes
+    const placeholders = idsEstaciones.map(() => '?').join(',');
     const [counts] = await db.query(`
       SELECT 
         COUNT(*) AS total,
@@ -30,20 +45,45 @@ router.get('/resumen', verificarToken, async (req, res) => {
         SUM(CASE WHEN estado = 'RESUELTO' THEN 1 ELSE 0 END) AS resueltos
       FROM incidentes
       WHERE id_estacion IN (${placeholders})
-    `, ids);
+    `, idsEstaciones);
 
-    res.json(counts[0]);
+    res.json(counts[0] || { total: 0, abiertos: 0, en_proceso: 0, resueltos: 0 });
   } catch (err) {
-    console.error('Error /resumen:', err);
+    console.error('Error en /resumen:', err);
     res.status(500).json({ success: false, message: 'Error al obtener resumen' });
   }
 });
 
-// GET /api/incidentes/recientes (solo ABIERTO y EN_PROCESO)
+// GET /api/incidentes/recientes?estacion=123 (opcional)
 router.get('/recientes', verificarToken, async (req, res) => {
   const id_personal = req.user.id_personal || req.user.id;
+  const { estacion } = req.query;
 
   try {
+    // 1. Estaciones asignadas
+    const [asignadas] = await db.query(`
+      SELECT id_estacion 
+      FROM personal_estacion 
+      WHERE id_personal = ? AND estado = 'ACTIVO'
+    `, [id_personal]);
+
+    if (asignadas.length === 0) {
+      return res.json([]);
+    }
+
+    let idsEstaciones = asignadas.map(e => e.id_estacion);
+
+    // 2. Filtro por estación específica
+    if (estacion) {
+      const idEst = Number(estacion);
+      if (isNaN(idEst) || !idsEstaciones.includes(idEst)) {
+        return res.json([]); // nada si no está asignada
+      }
+      idsEstaciones = [idEst];
+    }
+
+    // 3. Obtener incidentes recientes
+    const placeholders = idsEstaciones.map(() => '?').join(',');
     const [rows] = await db.query(`
       SELECT 
         i.id_incidente,
@@ -57,19 +97,15 @@ router.get('/recientes', verificarToken, async (req, res) => {
       FROM incidentes i
       LEFT JOIN estaciones e ON i.id_estacion = e.id_estacion
       LEFT JOIN personal p ON i.id_reportado_por = p.id_personal
-      WHERE i.id_estacion IN (
-        SELECT pe.id_estacion 
-        FROM personal_estacion pe 
-        WHERE pe.id_personal = ? AND pe.estado = 'ACTIVO'
-      )
-      AND i.estado IN ('ABIERTO', 'EN_PROCESO')
+      WHERE i.id_estacion IN (${placeholders})
+        AND i.estado IN ('ABIERTO', 'EN_PROCESO')
       ORDER BY i.fecha_reporte DESC
       LIMIT 10
-    `, [id_personal]);
+    `, idsEstaciones);
 
     res.json(rows);
   } catch (err) {
-    console.error('Error /recientes:', err);
+    console.error('Error en /recientes:', err);
     res.status(500).json({ success: false, message: 'Error al obtener incidentes recientes' });
   }
 });

@@ -11,7 +11,7 @@
 </head>
 <body class="min-h-screen text-white flex">
 
-  <!-- Menú lateral (sin cambios) -->
+  <!-- Menú lateral -->
   <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
     <div class="p-6 border-b border-teal-700/50">
       <div class="flex items-center gap-3">
@@ -32,7 +32,7 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
         Mi Estación
       </a>
-      <a href="paginapasajeros.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">
+      <a href="paginapasajeros.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         Registrar Flujo de Pasajeros
       </a>
@@ -53,18 +53,34 @@
   <!-- Contenido principal -->
   <main class="flex-1 overflow-y-auto">
 
+    <!-- ══ HEADER CON CAMPANITA ══ -->
     <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
       <div class="max-w-full px-6 py-4 flex justify-between items-center">
-        <h1 class="text-2xl font-bold">Gestión de Incidentes</h1>
+        <h1 class="text-2xl font-bold">
+          Gestión de Incidentes —
+          <span id="estacionActual" class="text-teal-300">Cargando estación...</span>
+        </h1>
+
         <div class="flex items-center gap-4">
-          <button class="relative text-teal-200 hover:text-white">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">2</span>
+
+          <!-- CAMPANITA con badge (misma lógica que dashboard y pasajeros) -->
+          <button id="btnNotificaciones"
+                  class="relative text-teal-200 hover:text-white cursor-pointer focus:outline-none transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+            <span id="notifBadge"
+                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 hidden">
+              0
+            </span>
           </button>
+
+          <!-- Info del usuario -->
           <div class="flex items-center gap-3">
             <div class="text-right">
               <p class="font-medium">Bienvenid@, <span id="nombreUsuario" class="text-teal-300"></span></p>
-              <p class="text-sm text-teal-300">Rol: Operador - Estación Centro</p>
+              <p class="text-sm text-teal-300">Rol: Operador</p>
             </div>
             <div class="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center font-bold">OP</div>
           </div>
@@ -74,9 +90,23 @@
 
     <div class="p-6 max-w-7xl mx-auto">
 
-      <!-- Barra de búsqueda y botón nuevo -->
+      <!-- Barra de búsqueda y filtros -->
       <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
-        <input type="text" placeholder="Buscar incidentes..." class="w-full md:w-96 bg-white/10 border border-white/20 rounded-xl px-5 py-3 focus:outline-none focus:border-teal-400 placeholder-gray-400">
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-wrap">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Buscar por título, descripción, estación..."
+            class="w-full md:w-80 lg:w-96 bg-white/10 border border-white/20 rounded-xl px-5 py-3 focus:outline-none focus:border-teal-400 placeholder-gray-400"
+          >
+          <select id="filtroCriticidad" class="bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-teal-400 text-white min-w-[180px]">
+            <option value="">Nivel de criticidad: Todos</option>
+            <option value="BAJO">Bajo</option>
+            <option value="MEDIO">Medio</option>
+            <option value="ALTO">Alto</option>
+            <option value="CRITICO">Crítico</option>
+          </select>
+        </div>
         <button id="btnNuevoIncidente" class="w-full md:w-auto bg-orange-600 hover:bg-orange-500 px-6 py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
           <span>+ Nuevo Incidente</span>
         </button>
@@ -102,7 +132,7 @@
         </div>
       </div>
 
-      <!-- Incidentes recientes (solo ABIERTO y EN_PROCESO) -->
+      <!-- Incidentes recientes -->
       <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
         <h2 class="text-2xl font-bold mb-6">Incidentes Recientes (Abiertos / En Proceso)</h2>
         <div id="incidentesRecientes" class="space-y-4 min-h-[200px]">
@@ -112,23 +142,20 @@
       </div>
 
     </div>
-
   </main>
 
-  <!-- Modal para nuevo incidente -->
+  <!-- Modal nuevo incidente -->
   <div id="modalNuevoIncidente" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
     <div class="bg-teal-950/90 border border-teal-700/50 rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
       <div class="p-6 border-b border-teal-700/50 flex justify-between items-center">
         <h2 class="text-2xl font-bold">Reportar Nuevo Incidente</h2>
         <button id="btnCerrarModal" class="text-teal-300 hover:text-white text-2xl">×</button>
       </div>
-
       <form id="formNuevoIncidente" class="p-6 space-y-5">
         <div>
           <label class="block text-sm text-teal-200 mb-1">Título *</label>
           <input type="text" name="titulo" required class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400" placeholder="Ej: Cabina 08 atascada en Estación Sur">
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label class="block text-sm text-teal-200 mb-1">Tipo *</label>
@@ -149,31 +176,46 @@
             </select>
           </div>
         </div>
-
         <div>
           <label class="block text-sm text-teal-200 mb-1">Estación afectada</label>
           <select name="id_estacion" id="selectEstacion" class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
             <option value="">-- Seleccionar estación --</option>
           </select>
         </div>
-
         <div>
           <label class="block text-sm text-teal-200 mb-1">Cabina (opcional)</label>
           <select name="id_cabina" id="selectCabina" disabled class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
             <option value="">-- Primero selecciona estación --</option>
           </select>
         </div>
-
         <div>
           <label class="block text-sm text-teal-200 mb-1">Descripción detallada *</label>
           <textarea name="descripcion" required rows="5" class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400" placeholder="Describe qué ocurrió..."></textarea>
         </div>
-
         <div class="flex justify-end gap-4 pt-4 border-t border-teal-700/30">
           <button type="button" id="btnCancelar" class="px-6 py-3 bg-gray-700/50 hover:bg-gray-600 rounded-lg transition">Cancelar</button>
           <button type="submit" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded-lg font-medium transition">Reportar Incidente</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ══ MODAL DE LA CAMPANITA ══ -->
+  <div id="modalNotificaciones"
+       class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+    <div class="bg-teal-950/90 backdrop-blur-lg border border-teal-700/50 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-orange-400">Congestiones Ignoradas (Pendientes)</h2>
+        <button id="cerrarModalNotif" class="text-gray-400 hover:text-white transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="modalNotifContent" class="space-y-3"></div>
+      <p id="sinPendientesModal" class="text-center text-gray-400 mt-6 hidden">
+        Sin congestiones pendientes. ✅
+      </p>
     </div>
   </div>
 

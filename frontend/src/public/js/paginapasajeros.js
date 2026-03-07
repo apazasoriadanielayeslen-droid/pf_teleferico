@@ -11,40 +11,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Elementos del DOM
-    const estacionSelect = document.getElementById('estacionSelect');
-    const toggleSimulacionBtn = document.getElementById('toggleSimulacionBtn');
-    const historialTbody = document.getElementById('historialTbody');
-    const horaActualSpan = document.getElementById('horaActual');
-    const estadoSimulacion = document.getElementById('estadoSimulacion');
-    const alertaCongestion = document.getElementById('alertaCongestion');
-    const alertaCongestionTarjeta = document.getElementById('alertaCongestionTarjeta');
-    const mensajeCongestion = document.getElementById('mensajeCongestion');
-    const btnIgnorarCongestion = document.getElementById('btnIgnorarCongestion');
-    const btnConfirmarCongestion = document.getElementById('btnConfirmarCongestion');
-    const ignoradasContainer = document.getElementById('ignoradasContainer');
-    const sinIgnoradas = document.getElementById('sinIgnoradas');
-    const estacionActualSpan = document.getElementById('estacionActual');
-    const btnNotificaciones = document.getElementById('btnNotificaciones');
-    const modalNotificaciones = document.getElementById('modalNotificaciones');
-    const modalContent = document.getElementById('modalContent');
-    const sinPendientesModal = document.getElementById('sinPendientesModal');
-    const cerrarModal = document.getElementById('cerrarModal');
-    const notifBadge = document.getElementById('notifBadge');
+    const estacionSelect            = document.getElementById('estacionSelect');
+    const toggleSimulacionBtn       = document.getElementById('toggleSimulacionBtn');
+    const historialTbody            = document.getElementById('historialTbody');
+    const horaActualSpan            = document.getElementById('horaActual');
+    const estadoSimulacion          = document.getElementById('estadoSimulacion');
+    const alertaCongestion          = document.getElementById('alertaCongestion');
+    const alertaCongestionTarjeta   = document.getElementById('alertaCongestionTarjeta');
+    const mensajeCongestion         = document.getElementById('mensajeCongestion');
+    const btnIgnorarCongestion      = document.getElementById('btnIgnorarCongestion');
+    const btnConfirmarCongestion    = document.getElementById('btnConfirmarCongestion');
+    const ignoradasContainer        = document.getElementById('ignoradasContainer');
+    const sinIgnoradas              = document.getElementById('sinIgnoradas');
+    const estacionActualSpan        = document.getElementById('estacionActual');
+    const btnNotificaciones         = document.getElementById('btnNotificaciones');
+    const modalNotificaciones       = document.getElementById('modalNotificaciones');
+    const modalContent              = document.getElementById('modalContent');
+    const sinPendientesModal        = document.getElementById('sinPendientesModal');
+    const cerrarModal               = document.getElementById('cerrarModal');
+    const notifBadge                = document.getElementById('notifBadge');
 
-    const MAX_PASAJEROS_POR_CABINA = 10;
-    const MAX_ENTRADA_POR_HORA = 4500;
+    const MAX_PASAJEROS_POR_CABINA  = 10;
+    const MAX_ENTRADA_POR_HORA      = 4500;
 
-    let capacidadEstacionActual = 1000;
-    const ULTIMA_ESTACION_KEY = 'ultima_estacion_seleccionada';
-    const SIMULACION_ACTIVA_KEY = 'simulacionActiva';
-    const SIMULACION_ESTACION_KEY = 'simulacionEstacionId';
+    // ── Clave de localStorage para compartir aforo con el dashboard ──
+    const AFORO_LIVE_KEY            = 'aforo_live';
+    const ULTIMA_ESTACION_KEY       = 'ultima_estacion_seleccionada';
+    const SIMULACION_ACTIVA_KEY     = 'simulacionActiva';
+    const SIMULACION_ESTACION_KEY   = 'simulacionEstacionId';
 
-    let simulacionTimeout = null;
-    let simulacionActiva = false;
-    let tempCongestionData = null;
+    let capacidadEstacionActual     = 1000;
+    let simulacionTimeout           = null;
+    let simulacionActiva            = false;
+    let tempCongestionData          = null;
 
     // ────────────────────────────────────────────────
-    // Funciones básicas
+    // Hora actual
     // ────────────────────────────────────────────────
     function actualizarHora() {
         const now = new Date();
@@ -54,7 +56,45 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(actualizarHora, 60000);
 
     // ────────────────────────────────────────────────
-    // Cargar estaciones y seleccionar la última
+    // Publicar aforo en localStorage → el dashboard lo lee al instante
+    // ────────────────────────────────────────────────
+    function publicarAforoEnLocalStorage(flujos) {
+        if (!flujos || flujos.length === 0) {
+            localStorage.setItem(AFORO_LIVE_KEY, JSON.stringify({
+                aforoActual: 0,
+                capacidad: capacidadEstacionActual,
+                porc: 0,
+                totalEntradas: 0,
+                timestamp: Date.now()
+            }));
+            return;
+        }
+
+        let aforoActual   = 0;
+        let totalEntradas = 0;
+        flujos.forEach(f => {
+            const ent = Number(f.entrantes || 0);
+            const sal = Number(f.salientes || 0);
+            aforoActual   += ent - sal;
+            totalEntradas += ent;
+        });
+
+        const porc = capacidadEstacionActual > 0
+            ? Math.min(100, Math.max(0, Math.round((aforoActual / capacidadEstacionActual) * 100)))
+            : 0;
+
+        // Escribir en localStorage → dispara 'storage' event en otras pestañas/páginas
+        localStorage.setItem(AFORO_LIVE_KEY, JSON.stringify({
+            aforoActual,
+            capacidad: capacidadEstacionActual,
+            porc,
+            totalEntradas,
+            timestamp: Date.now()
+        }));
+    }
+
+    // ────────────────────────────────────────────────
+    // Cargar estaciones
     // ────────────────────────────────────────────────
     async function cargarEstaciones() {
         try {
@@ -65,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const estaciones = await res.json();
 
             estacionSelect.innerHTML = '<option value="">-- Seleccione una estación --</option>';
-
             estaciones.forEach(est => {
                 const opt = document.createElement('option');
                 opt.value = est.id_estacion;
@@ -74,10 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 estacionSelect.appendChild(opt);
             });
 
-            // Seleccionar última estación guardada o la primera
             let idSeleccionada;
             const ultimaId = localStorage.getItem(ULTIMA_ESTACION_KEY);
-
             if (ultimaId && estaciones.some(e => e.id_estacion == ultimaId)) {
                 idSeleccionada = ultimaId;
             } else if (estaciones.length > 0) {
@@ -100,19 +137,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ────────────────────────────────────────────────
-    // Cambio de estación → cargar datos + detener simulación si estaba activa
+    // Cambio de estación
     // ────────────────────────────────────────────────
     estacionSelect.addEventListener('change', () => {
         const id = estacionSelect.value;
         if (id) {
             const selectedOpt = estacionSelect.options[estacionSelect.selectedIndex];
-            const nombre = selectedOpt.text;
             capacidadEstacionActual = Number(selectedOpt.dataset.capacidad) || 1000;
-            estacionActualSpan.textContent = nombre;
+            estacionActualSpan.textContent = selectedOpt.text;
             localStorage.setItem(ULTIMA_ESTACION_KEY, id);
             cargarHistorial(id);
 
-            // Si la simulación estaba activa → la detenemos al cambiar estación
             if (simulacionActiva) {
                 simulacionActiva = false;
                 toggleSimulacionBtn.textContent = 'Iniciar Simulación';
@@ -122,18 +157,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem(SIMULACION_ACTIVA_KEY, 'false');
                 localStorage.removeItem(SIMULACION_ESTACION_KEY);
             }
-
             alertaCongestionTarjeta.classList.add('hidden');
         } else {
             estacionActualSpan.textContent = 'Seleccione una estación';
             localStorage.removeItem(ULTIMA_ESTACION_KEY);
             historialTbody.innerHTML = '';
             alertaCongestion.classList.add('hidden');
+            // Limpiar aforo en localStorage
+            localStorage.removeItem(AFORO_LIVE_KEY);
         }
     });
 
     // ────────────────────────────────────────────────
-    // Resto de funciones (actualizarBadge, notificaciones, historial, etc.)
+    // Badge notificaciones
     // ────────────────────────────────────────────────
     async function actualizarBadge() {
         try {
@@ -142,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!res.ok) throw new Error('Error en la respuesta del servidor');
             const notifs = await res.json();
-
             if (notifs.length > 0) {
                 notifBadge.textContent = notifs.length;
                 notifBadge.classList.remove('hidden');
@@ -179,9 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sinPendientesModal.classList.remove('hidden');
                 return;
             }
-
             sinPendientesModal.classList.add('hidden');
-
             notifs.forEach(notif => {
                 const item = document.createElement('div');
                 item.className = 'bg-red-900/40 p-4 rounded-lg cursor-pointer hover:bg-red-800/50 transition';
@@ -202,6 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ────────────────────────────────────────────────
+    // Cargar historial → actualiza tarjeta + publica en localStorage
+    // ────────────────────────────────────────────────
     async function cargarHistorial(id_estacion) {
         if (!id_estacion) return;
         try {
@@ -210,10 +246,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!res.ok) throw new Error(res.status);
             const data = await res.json();
+
             renderHistorial(data);
             actualizarTarjetas(data, id_estacion);
             actualizarAforoCard(data);
             verificarCongestion(data);
+
+            // ── Publicar datos frescos para el dashboard ──
+            publicarAforoEnLocalStorage(data);
+
         } catch (err) {
             console.error("Error historial:", err);
             historialTbody.innerHTML = '<tr><td colspan="5" class="py-4 px-4 text-center text-red-400">Error al cargar historial</td></tr>';
@@ -221,6 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ────────────────────────────────────────────────
+    // Render historial
+    // ────────────────────────────────────────────────
     function renderHistorial(flujos) {
         historialTbody.innerHTML = '';
         let aforoAcumulado = 0;
@@ -228,21 +272,18 @@ document.addEventListener('DOMContentLoaded', () => {
         flujos.forEach(flujo => {
             const neto = flujo.entrantes - flujo.salientes;
             aforoAcumulado += neto;
-
             const porcAforo = (aforoAcumulado / capacidadEstacionActual) * 100;
             let tendencia = porcAforo < 50 ? '↓ Baja' : porcAforo < 80 ? '↔ Media' : '↑ Alta';
             let color = porcAforo < 50 ? 'text-green-400' : porcAforo < 80 ? 'text-yellow-400' : 'text-red-400';
 
-            const fila = `
+            historialTbody.innerHTML += `
                 <tr class="border-b border-white/10 hover:bg-white/5">
                     <td class="py-4 px-4">${flujo.hora}:00</td>
                     <td class="py-4 px-4">${flujo.entrantes}</td>
                     <td class="py-4 px-4">${flujo.salientes}</td>
                     <td class="py-4 px-4">${neto >= 0 ? '+' : ''}${neto}</td>
                     <td class="py-4 px-4 ${color}">${tendencia}</td>
-                </tr>
-            `;
-            historialTbody.innerHTML += fila;
+                </tr>`;
         });
 
         if (flujos.length === 0) {
@@ -250,28 +291,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ────────────────────────────────────────────────
+    // Tarjetas resumen
+    // ────────────────────────────────────────────────
     async function actualizarTarjetas(flujos, id_estacion) {
         if (flujos.length === 0) {
-            document.getElementById('totalHoyValor').textContent = '0';
-            document.getElementById('ultimaHoraValor').textContent = '0';
-            document.getElementById('ultimaHoraRango').textContent = 'Sin datos';
-            document.getElementById('picoValor').textContent = '0';
-            document.getElementById('picoHora').textContent = 'N/A';
-            document.getElementById('totalHoyPorc').textContent = '+0% vs ayer';
+            document.getElementById('totalHoyValor').textContent    = '0';
+            document.getElementById('ultimaHoraValor').textContent  = '0';
+            document.getElementById('ultimaHoraRango').textContent  = 'Sin datos';
+            document.getElementById('picoValor').textContent        = '0';
+            document.getElementById('picoHora').textContent         = 'N/A';
+            document.getElementById('totalHoyPorc').textContent     = '+0% vs ayer';
             return;
         }
 
         const totalHoy = flujos.reduce((sum, f) => sum + Number(f.entrantes || 0), 0);
-
-        let pico = 0;
-        let picoHora = 0;
-
+        let pico = 0, picoHora = 0;
         flujos.forEach(f => {
-            const entrantesNum = Number(f.entrantes || 0);
-            if (entrantesNum > pico) {
-                pico = entrantesNum;
-                picoHora = Number(f.hora);
-            }
+            const e = Number(f.entrantes || 0);
+            if (e > pico) { pico = e; picoHora = Number(f.hora); }
         });
 
         const formatHora = (h24) => {
@@ -281,23 +319,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${hh < 10 ? '0' : ''}${hh}:00 ${ampm}`;
         };
 
-        const picoTexto = formatHora(picoHora);
-
         const ultima = flujos[flujos.length - 1];
         const ultimaValor = Number(ultima.entrantes || 0);
         const ultimaRango = `${ultima.hora < 10 ? '0' : ''}${ultima.hora}:00 - ${(ultima.hora + 1) % 24 < 10 ? '0' : ''}${(ultima.hora + 1) % 24}:00`;
 
-        document.getElementById('totalHoyValor').textContent = totalHoy.toLocaleString('es-BO');
+        document.getElementById('totalHoyValor').textContent   = totalHoy.toLocaleString('es-BO');
         document.getElementById('ultimaHoraValor').textContent = ultimaValor.toLocaleString('es-BO');
         document.getElementById('ultimaHoraRango').textContent = ultimaRango;
-        document.getElementById('picoValor').textContent = pico.toLocaleString('es-BO');
-        document.getElementById('picoHora').textContent = picoTexto;
+        document.getElementById('picoValor').textContent       = pico.toLocaleString('es-BO');
+        document.getElementById('picoHora').textContent        = formatHora(picoHora);
     }
 
+    // ────────────────────────────────────────────────
+    // Actualizar tarjeta de aforo (UI local)
+    // ────────────────────────────────────────────────
     function actualizarAforoCard(flujos) {
         if (!flujos || flujos.length === 0) {
             document.getElementById('aforoActualValor').textContent = '0';
-            document.getElementById('aforoPorcentaje').textContent = '0';
+            document.getElementById('aforoPorcentaje').textContent  = '0';
             document.getElementById('aforoProgressBar').style.width = '0%';
             document.getElementById('aforoMensaje').classList.add('hidden');
             document.getElementById('aforoStatus').innerHTML = '';
@@ -309,19 +348,18 @@ document.addEventListener('DOMContentLoaded', () => {
             aforoActual += Number(f.entrantes || 0) - Number(f.salientes || 0);
         });
 
-        const porc = capacidadEstacionActual > 0 
-            ? Math.min(100, Math.max(0, Math.round((aforoActual / capacidadEstacionActual) * 100))) 
+        const porc = capacidadEstacionActual > 0
+            ? Math.min(100, Math.max(0, Math.round((aforoActual / capacidadEstacionActual) * 100)))
             : 0;
 
         document.getElementById('aforoActualValor').textContent = aforoActual.toLocaleString('es-BO');
-        document.getElementById('capacidadValor').textContent = capacidadEstacionActual.toLocaleString('es-BO');
-        document.getElementById('aforoPorcentaje').textContent = porc;
+        document.getElementById('capacidadValor').textContent   = capacidadEstacionActual.toLocaleString('es-BO');
+        document.getElementById('aforoPorcentaje').textContent  = porc;
 
         const progressBar = document.getElementById('aforoProgressBar');
         progressBar.style.width = `${porc}%`;
 
-        let mensaje = '';
-        let statusHTML = '';
+        let mensaje = '', statusHTML = '';
 
         if (porc < 70) {
             progressBar.style.background = 'linear-gradient(to right, #10b981, #34d399)';
@@ -343,7 +381,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('aforoMensaje').className = 'mt-5 text-center text-base md:text-lg font-medium text-red-300';
             alertaCongestion.classList.remove('hidden');
         }
-
         document.getElementById('aforoStatus').innerHTML = statusHTML;
     }
 
@@ -354,19 +391,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ────────────────────────────────────────────────
-    // SIMULACIÓN - Función principal de registro
+    // SIMULACIÓN
     // ────────────────────────────────────────────────
     async function simularYRegistrarFlujo(id_estacion) {
         let entrantes = Math.floor(Math.random() * 4);
         let salientes = Math.floor(Math.random() * (entrantes + 1));
 
         const hayCongestion = Math.random() < 0.05;
-        let attempted = entrantes;
-
         if (hayCongestion) {
-            attempted = Math.floor(Math.random() * 5) + 11;
-            entrantes = attempted;
-            console.log(`[CONGESTIÓN DETECTADA] Intentando ${attempted} entrantes`);
+            entrantes = Math.floor(Math.random() * 5) + 11;
         }
 
         try {
@@ -382,15 +415,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             if (data.isCongestion) {
-                mensajeCongestion.textContent = 
+                mensajeCongestion.textContent =
                     `¡Congestión detectada! Se intentaron registrar ${data.attemptedEntrantes} pasajeros (límite: 10 por cabina). ¿Registrar incidente?`;
                 alertaCongestionTarjeta.classList.remove('hidden');
                 estadoSimulacion.textContent = "Esperando decisión del operador...";
-
-                tempCongestionData = {
-                    id_estacion: id_estacion,
-                    attemptedEntrantes: data.attemptedEntrantes
-                };
+                tempCongestionData = { id_estacion, attemptedEntrantes: data.attemptedEntrantes };
                 return;
             }
 
@@ -399,8 +428,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            console.log(`Flujo registrado → Entrantes: ${entrantes} | Salientes: ${salientes}`);
-            cargarHistorial(id_estacion);
+            // ── Actualizar UI y publicar en localStorage tras cada registro ──
+            await cargarHistorial(id_estacion);
 
         } catch (err) {
             console.error("Error de red:", err);
@@ -408,33 +437,26 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             if (simulacionActiva) {
                 const nextInterval = Math.floor(Math.random() * 3500) + 1500;
-                console.log(`Próximo en ${(nextInterval / 1000).toFixed(1)}s`);
                 simulacionTimeout = setTimeout(() => simularYRegistrarFlujo(id_estacion), nextInterval);
             }
         }
     }
 
     // ────────────────────────────────────────────────
-    // Confirmar / Ignorar congestión (sin cambios)
+    // Confirmar / Ignorar congestión
     // ────────────────────────────────────────────────
     async function confirmarCongestion() {
         if (!tempCongestionData) return;
-
         try {
             const res = await fetch(`${API_URL}/api/confirmar-congestion`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     id_estacion: tempCongestionData.id_estacion,
                     attemptedEntrantes: tempCongestionData.attemptedEntrantes
                 })
             });
-
             const result = await res.json();
-
             if (res.ok && result.ok) {
                 alertaCongestionTarjeta.classList.add('hidden');
                 estadoSimulacion.textContent = 'Congestión registrada como atendida y resuelta inmediatamente.';
@@ -452,27 +474,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function ignorarCongestion() {
         if (!tempCongestionData) return;
-
         try {
             const res = await fetch(`${API_URL}/api/ignorar-congestion`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     id_estacion: tempCongestionData.id_estacion,
                     attemptedEntrantes: tempCongestionData.attemptedEntrantes
                 })
             });
-
             const result = await res.json();
-
             if (res.ok && result.ok) {
                 alertaCongestionTarjeta.classList.add('hidden');
                 estadoSimulacion.textContent = 'Congestión ignorada y registrada como pendiente.';
-await cargarNotificacionesPendientesPagina();
-await actualizarBadge();
+                await cargarNotificacionesPendientesPagina();
+                await actualizarBadge();
             } else {
                 estadoSimulacion.textContent = result.message || 'Error al ignorar congestión.';
             }
@@ -486,7 +502,6 @@ await actualizarBadge();
 
     function agregarNotificacionIgnorada(data) {
         sinIgnoradas.classList.add('hidden');
-
         const card = document.createElement('div');
         card.className = 'bg-red-900/60 backdrop-blur-xl border border-red-700/50 rounded-xl p-5 shadow-lg';
         card.setAttribute('data-id-notif', data.id_notificacion);
@@ -508,38 +523,28 @@ await actualizarBadge();
                 </button>
             </div>
         `;
-
         ignoradasContainer.appendChild(card);
 
-        card.querySelector('.solucionar-btn').addEventListener('click', async function() {
-            const btn = this;
+        card.querySelector('.solucionar-btn').addEventListener('click', async function () {
+            const btn    = this;
             const idNotif = btn.dataset.idNotif;
-            const idInc = btn.dataset.idInc;
-
+            const idInc   = btn.dataset.idInc;
             try {
                 const res = await fetch(`${API_URL}/api/notificaciones/solucionar`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ id_notificacion: idNotif, id_incidente: idInc })
                 });
-
                 const result = await res.json();
-
                 if (res.ok) {
                     btn.textContent = 'Solucionado ✓';
                     btn.disabled = true;
                     btn.classList.remove('bg-green-600', 'hover:bg-green-500');
                     btn.classList.add('bg-gray-500', 'cursor-not-allowed');
                     estadoSimulacion.textContent = 'Notificación marcada como solucionada.';
-                    
                     setTimeout(async () => {
                         card.remove();
-                        if (ignoradasContainer.children.length === 0) {
-                            sinIgnoradas.classList.remove('hidden');
-                        }
+                        if (ignoradasContainer.children.length === 0) sinIgnoradas.classList.remove('hidden');
                         await actualizarBadge();
                     }, 1500);
                 } else {
@@ -552,50 +557,31 @@ await actualizarBadge();
         });
     }
 
-
-
-    // ====================== NUEVA FUNCIÓN (la que faltaba) ======================
-async function cargarNotificacionesPendientesPagina() {
-    try {
-        const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error('Error servidor');
-        
-        const notifs = await res.json();
-        ignoradasContainer.innerHTML = '';
-
-        if (notifs.length === 0) {
-            sinIgnoradas.classList.remove('hidden');
-            return;
+    async function cargarNotificacionesPendientesPagina() {
+        try {
+            const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Error servidor');
+            const notifs = await res.json();
+            ignoradasContainer.innerHTML = '';
+            if (notifs.length === 0) { sinIgnoradas.classList.remove('hidden'); return; }
+            sinIgnoradas.classList.add('hidden');
+            notifs.forEach(notif => {
+                agregarNotificacionIgnorada({
+                    id_notificacion: notif.id_notificacion,
+                    id_incidente: notif.id_incidente,
+                    estacion: notif.estacion || 'Desconocida',
+                    attemptedEntrantes: parseInt(notif.mensaje.match(/\d+/)?.[0]) || 0
+                });
+            });
+        } catch (err) {
+            console.error("Error cargando tarjetas pendientes:", err);
         }
-
-        sinIgnoradas.classList.add('hidden');
-
-        notifs.forEach(notif => {
-            const dataParaTarjeta = {
-                id_notificacion: notif.id_notificacion,
-                id_incidente: notif.id_incidente,
-                estacion: notif.estacion || 'Desconocida',
-                attemptedEntrantes: parseInt(notif.mensaje.match(/\d+/)?.[0]) || 0
-            };
-            agregarNotificacionIgnorada(dataParaTarjeta);
-        });
-
-    } catch (err) {
-        console.error("Error cargando tarjetas pendientes:", err);
     }
-}
-
-
-
-
-
-
-
 
     // ────────────────────────────────────────────────
-    // Botón Iniciar/Detener Simulación + GUARDAR ESTADO
+    // Botón Iniciar/Detener Simulación
     // ────────────────────────────────────────────────
     toggleSimulacionBtn.addEventListener('click', () => {
         const id_estacion = estacionSelect.value;
@@ -607,21 +593,15 @@ async function cargarNotificacionesPendientesPagina() {
             toggleSimulacionBtn.textContent = 'Detener Simulación';
             toggleSimulacionBtn.classList.add('bg-emerald-600');
             estadoSimulacion.textContent = 'Simulación activa...';
-
-            // Guardar estado en localStorage
             localStorage.setItem(SIMULACION_ACTIVA_KEY, 'true');
             localStorage.setItem(SIMULACION_ESTACION_KEY, id_estacion);
-
             simularYRegistrarFlujo(id_estacion);
         } else {
             toggleSimulacionBtn.textContent = 'Iniciar Simulación';
             toggleSimulacionBtn.classList.remove('bg-emerald-600');
             estadoSimulacion.textContent = 'Simulación detenida.';
-
-            // Limpiar estado guardado
             localStorage.setItem(SIMULACION_ACTIVA_KEY, 'false');
             localStorage.removeItem(SIMULACION_ESTACION_KEY);
-
             clearTimeout(simulacionTimeout);
         }
     });
@@ -630,41 +610,33 @@ async function cargarNotificacionesPendientesPagina() {
     btnIgnorarCongestion.addEventListener('click', ignorarCongestion);
 
     // ────────────────────────────────────────────────
-    // Restaurar simulación al cargar la página
+    // Restaurar simulación al recargar la página
     // ────────────────────────────────────────────────
     const simulacionGuardada = localStorage.getItem(SIMULACION_ACTIVA_KEY) === 'true';
-    const estacionGuardada = localStorage.getItem(SIMULACION_ESTACION_KEY);
+    const estacionGuardada   = localStorage.getItem(SIMULACION_ESTACION_KEY);
 
     if (simulacionGuardada && estacionGuardada) {
-        // Esperamos un momento a que se carguen las estaciones
         setTimeout(() => {
-            if (estacionSelect.options.length > 1) {  // ya cargadas
+            if (estacionSelect.options.length > 1) {
                 if (estacionSelect.querySelector(`option[value="${estacionGuardada}"]`)) {
                     estacionSelect.value = estacionGuardada;
-                    // Disparamos evento change para actualizar todo
-                    const changeEvent = new Event('change');
-                    estacionSelect.dispatchEvent(changeEvent);
-
+                    estacionSelect.dispatchEvent(new Event('change'));
                     simulacionActiva = true;
                     toggleSimulacionBtn.textContent = 'Detener Simulación';
                     toggleSimulacionBtn.classList.add('bg-emerald-600');
                     estadoSimulacion.textContent = 'Simulación restaurada automáticamente';
-
                     simularYRegistrarFlujo(estacionGuardada);
                 } else {
-                    estadoSimulacion.textContent = 'Estación anterior no disponible. Seleccione una nueva.';
+                    estadoSimulacion.textContent = 'Estación anterior no disponible.';
                     localStorage.setItem(SIMULACION_ACTIVA_KEY, 'false');
                     localStorage.removeItem(SIMULACION_ESTACION_KEY);
                 }
             }
-        }, 800); // pequeño retraso para dar tiempo a cargar estaciones
+        }, 800);
     }
 
-    // Limpieza al salir de la página
     window.addEventListener('beforeunload', () => {
-        if (simulacionActiva) {
-            clearTimeout(simulacionTimeout);
-        }
+        if (simulacionActiva) clearTimeout(simulacionTimeout);
     });
 
     // Inicio
