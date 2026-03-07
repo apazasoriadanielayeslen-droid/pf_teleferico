@@ -2,6 +2,9 @@ const express = require("express");
 const cors    = require("cors");
 require("dotenv").config();
 
+const path       = require('path');
+const { exec }   = require('child_process');
+
 const db = require("./src/config/conexion");
 
 // Rutas y controladores
@@ -11,7 +14,7 @@ const maintRoutes      = require('./src/routes/maintenance');
 const estacionesRouter = require('./src/routes/estaciones');
 const flujopaCtrl      = require('./src/controllers/flujopaController');
 const incidentesRouter = require('./src/routes/incidentes');
-const dashboardRoutes  = require('./src/routes/dashboard_operador'); // ← dashboard
+const dashboardRoutes  = require('./src/routes/dashboard_operador');
 
 const { verificarToken } = require('./src/middlewares/mauth');
 
@@ -31,20 +34,28 @@ app.use('/api/supervisor/maint', maintRoutes);
 app.use('/api/estaciones', estacionesRouter);
 
 // Rutas de flujo de pasajeros (protegidas con token)
-app.post('/api/registrar-flujo',          verificarToken, flujopaCtrl.registrarFlujo);
-app.get('/api/flujo/hoy',                 verificarToken, flujopaCtrl.getFlujoHoy);
-app.get('/api/flujo/ayer',                verificarToken, flujopaCtrl.getFlujoAyer);
-app.post('/api/confirmar-congestion',     verificarToken, flujopaCtrl.confirmarCongestion);
-app.post('/api/ignorar-congestion',       verificarToken, flujopaCtrl.ignorarCongestion);
-app.post('/api/notificaciones/solucionar',verificarToken, flujopaCtrl.solucionarNotificacion);
-app.get('/api/notificaciones/ignoradas',  verificarToken, flujopaCtrl.getNotificacionesIgnoradas);
+app.post('/api/registrar-flujo',           verificarToken, flujopaCtrl.registrarFlujo);
+app.get('/api/flujo/hoy',                  verificarToken, flujopaCtrl.getFlujoHoy);
+app.get('/api/flujo/ayer',                 verificarToken, flujopaCtrl.getFlujoAyer);
+app.post('/api/confirmar-congestion',      verificarToken, flujopaCtrl.confirmarCongestion);
+app.post('/api/ignorar-congestion',        verificarToken, flujopaCtrl.ignorarCongestion);
+app.post('/api/notificaciones/solucionar', verificarToken, flujopaCtrl.solucionarNotificacion);
+app.get('/api/notificaciones/ignoradas',   verificarToken, flujopaCtrl.getNotificacionesIgnoradas);
 
-app.use('/api/incidentes',  incidentesRouter);
-app.use('/api/dashboard',   dashboardRoutes); // ← nueva ruta del dashboard
+app.use('/api/incidentes', incidentesRouter);
+app.use('/api/dashboard',  dashboardRoutes);
 
 // Ruta de prueba
 app.get("/", (req, res) => {
     res.json({ mensaje: "Servidor Teleférico funcionando 🚡" });
+});
+
+// Manejo global de errores 404
+app.use((req, res) => {
+    res.status(404).json({
+        ok: false,
+        message: "Ruta no encontrada"
+    });
 });
 
 // =======================
@@ -65,12 +76,21 @@ async function verificarConexion() {
 app.listen(PORT, async () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
     await verificarConexion();
-});
 
-// Manejo global de errores 404
-app.use((req, res) => {
-    res.status(404).json({
-        ok: false,
-        message: "Ruta no encontrada"
+    // Abrir el navegador con el login
+    const loginPath = path.join(__dirname, '..', 'frontend', 'src', 'public', 'paginas', 'login.html');
+
+    const comando = process.platform === 'win32'
+        ? `start "" "${loginPath}"`
+        : process.platform === 'darwin'
+        ? `open "${loginPath}"`
+        : `xdg-open "${loginPath}"`;
+
+    exec(comando, (err) => {
+        if (err) {
+            console.error('❌ No se pudo abrir el navegador:', err.message);
+        } else {
+            console.log('🌐 Navegador abierto con login.html');
+        }
     });
 });

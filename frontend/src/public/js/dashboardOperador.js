@@ -1,10 +1,3 @@
-// dashboardOperador.js
-// Lógica completa:
-//   - Aforo en tiempo real (localStorage + polling)
-//   - Campanita con badge que NO se pierde al navegar
-//   - Modal con lista de congestiones ignoradas
-//   - Tarjetas de notificaciones con botón Solucionar
-
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Dashboard Operador cargado");
 
@@ -19,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Elementos del DOM
     const btnNotificaciones   = document.getElementById('btnNotificaciones');
     const modalNotificaciones = document.getElementById('modalNotificaciones');
     const modalContent        = document.getElementById('modalContent');
@@ -82,20 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ════════════════════════════════════════════════════
-    // CAMPANITA — misma lógica que paginapasajeros.js
-    // El badge persiste porque siempre consulta la BD
-    // al cargar la página, sin importar desde dónde llegues
-    // ════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════
+    // CAMPANITA — badge + modal (CONGESTION + INCIDENTE)
+    // ════════════════════════════════════════════════
 
-    // ────────────────────────────────────────────────
-    // 4. Actualizar el badge (número rojo en la campanita)
-    //    Usa el mismo endpoint que paginapasajeros:
-    //    GET /api/notificaciones/ignoradas
-    // ────────────────────────────────────────────────
     async function actualizarBadge() {
         try {
-            const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
+            const res = await fetch(`${API_URL}/api/incidentes/notificaciones/todas`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error(res.status);
@@ -108,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 notifBadge.classList.add('hidden');
             }
 
-            // Actualizar resumen rápido
             const elResNotifs = document.getElementById('resumenNotifs');
             if (elResNotifs) {
                 elResNotifs.textContent = notifs.length > 0
@@ -124,9 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ────────────────────────────────────────────────
-    // 5. Clic en campanita → abrir modal con la lista
-    // ────────────────────────────────────────────────
     btnNotificaciones.addEventListener('click', async () => {
         modalNotificaciones.classList.remove('hidden');
         await cargarNotificacionesModal();
@@ -138,15 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === modalNotificaciones) modalNotificaciones.classList.add('hidden');
     });
 
-    // ────────────────────────────────────────────────
-    // 6. Contenido del MODAL de la campanita
-    // ────────────────────────────────────────────────
     async function cargarNotificacionesModal() {
         modalContent.innerHTML = '<p class="text-center text-gray-400 py-4">Cargando...</p>';
         sinPendientesModal.classList.add('hidden');
 
         try {
-            const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
+            const res = await fetch(`${API_URL}/api/incidentes/notificaciones/todas`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error(res.status);
@@ -160,15 +138,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             notifs.forEach(notif => {
+                const esCongestion = notif.tipo === 'CONGESTION';
+                const iconColor    = esCongestion ? 'text-orange-400' : 'text-blue-400';
+                const bgColor      = esCongestion
+                    ? 'bg-red-900/40 border-red-700/40'
+                    : 'bg-blue-900/40 border-blue-700/40';
+                const etiqueta     = esCongestion ? '🚨 Congestión' : '📋 Incidente';
+
                 const item = document.createElement('div');
-                item.className = 'bg-red-900/40 border border-red-700/40 p-4 rounded-xl cursor-pointer hover:bg-red-800/50 transition';
+                item.className = `${bgColor} border p-4 rounded-xl transition cursor-pointer hover:opacity-90`;
                 item.innerHTML = `
                     <div class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-orange-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-5 h-5 ${iconColor} mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                         </svg>
                         <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <span class="text-xs font-semibold ${iconColor}">${etiqueta}</span>
+                            </div>
                             <p class="font-semibold text-white">${notif.titulo}</p>
                             <p class="text-sm text-gray-300 mt-0.5">${notif.mensaje}</p>
                             <p class="text-xs text-gray-400 mt-1">
@@ -178,11 +166,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
-                // Clic en item del modal → cerrar modal y hacer scroll a las tarjetas
                 item.addEventListener('click', () => {
                     modalNotificaciones.classList.add('hidden');
-                    document.getElementById('ignoradasContainer')
-                        ?.scrollIntoView({ behavior: 'smooth' });
+                    document.getElementById('ignoradasContainer')?.scrollIntoView({ behavior: 'smooth' });
                 });
                 modalContent.appendChild(item);
             });
@@ -193,10 +179,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ────────────────────────────────────────────────
-    // 7. Tarjetas de notificaciones ignoradas en la PÁGINA
-    //    (sección inferior, igual que paginapasajeros)
-    // ────────────────────────────────────────────────
+    // ════════════════════════════════════════════════
+    // TARJETAS DE CONGESTIONES IGNORADAS (sección inferior)
+    // Estas siguen usando /api/notificaciones/ignoradas
+    // porque son solo congestiones con botón Solucionar
+    // ════════════════════════════════════════════════
+
     async function cargarNotificacionesPagina() {
         try {
             const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
@@ -213,15 +201,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             sinIgnoradas.classList.add('hidden');
-
             notifs.forEach(notif => {
                 const attemptedEntrantes = parseInt(notif.mensaje.match(/\d+/)?.[0]) || 0;
                 agregarTarjetaNotificacion({
-                    id_notificacion:    notif.id_notificacion,
-                    id_incidente:       notif.id_incidente,
-                    estacion:           notif.estacion || 'Desconocida',
+                    id_notificacion: notif.id_notificacion,
+                    id_incidente:    notif.id_incidente,
+                    estacion:        notif.estacion || 'Desconocida',
                     attemptedEntrantes,
-                    fecha:              notif.fecha
+                    fecha:           notif.fecha
                 });
             });
 
@@ -230,9 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ────────────────────────────────────────────────
-    // 8. Crear tarjeta individual con botón Solucionar
-    // ────────────────────────────────────────────────
     function agregarTarjetaNotificacion(data) {
         const card = document.createElement('div');
         card.className = 'bg-red-900/60 backdrop-blur-xl border border-red-700/50 rounded-xl p-5 shadow-lg';
@@ -269,7 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled    = true;
 
             try {
-                // Usa el mismo endpoint que paginapasajeros.js
                 const res = await fetch(`${API_URL}/api/notificaciones/solucionar`, {
                     method: 'POST',
                     headers: {
@@ -291,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (ignoradasContainer.children.length === 0) {
                             sinIgnoradas.classList.remove('hidden');
                         }
-                        // Actualizar badge inmediatamente
                         await actualizarBadge();
                     }, 1500);
                 } else {
@@ -371,11 +353,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const headerEl = document.getElementById('nombreEstacionHeader');
             if (headerEl) headerEl.textContent = est.nombre;
 
-            // Leer aforo desde localStorage (si la simulación ya está corriendo en otra pestaña)
             const raw = localStorage.getItem(AFORO_LIVE_KEY);
-            if (raw) renderizarTarjetaAforo(JSON.parse(raw));
-            else {
-                // Si no hay cache, consultar el servidor directamente
+            if (raw) {
+                renderizarTarjetaAforo(JSON.parse(raw));
+            } else {
                 const r2 = await fetch(`${API_URL}/api/flujo/hoy?id_estacion=${est.id_estacion}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -389,30 +370,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderizarTarjetaAforo({ aforoActual, capacidad: capacidadEstacionActual, porc, totalEntradas });
             }
 
-            // Storage event → actualización instantánea desde paginapasajeros
             window.addEventListener('storage', (event) => {
                 if (event.key === AFORO_LIVE_KEY && event.newValue) {
                     try { renderizarTarjetaAforo(JSON.parse(event.newValue)); } catch {}
                 }
             });
 
-            // Polling de respaldo cada 8 segundos
             pollingInterval = setInterval(async () => {
-                const r = await fetch(`${API_URL}/api/flujo/hoy?id_estacion=${estacionActualId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const flujos = await r.json();
-                let aforoActual = 0, totalEntradas = 0;
-                flujos.forEach(f => {
-                    aforoActual   += Number(f.entrantes || 0) - Number(f.salientes || 0);
-                    totalEntradas += Number(f.entrantes || 0);
-                });
-                const porc = Math.min(100, Math.max(0, Math.round((aforoActual / capacidadEstacionActual) * 100)));
-                renderizarTarjetaAforo({ aforoActual, capacidad: capacidadEstacionActual, porc, totalEntradas });
+                try {
+                    const r = await fetch(`${API_URL}/api/flujo/hoy?id_estacion=${estacionActualId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const flujos = await r.json();
+                    let aforoActual = 0, totalEntradas = 0;
+                    flujos.forEach(f => {
+                        aforoActual   += Number(f.entrantes || 0) - Number(f.salientes || 0);
+                        totalEntradas += Number(f.entrantes || 0);
+                    });
+                    const porc = Math.min(100, Math.max(0, Math.round((aforoActual / capacidadEstacionActual) * 100)));
+                    renderizarTarjetaAforo({ aforoActual, capacidad: capacidadEstacionActual, porc, totalEntradas });
 
-                // También refrescar badge y tarjetas cada 8 segundos
-                await actualizarBadge();
-                await cargarNotificacionesPagina();
+                    await actualizarBadge();
+                    await cargarNotificacionesPagina();
+                } catch (err) {
+                    console.error("Error polling:", err);
+                }
             }, 8000);
 
         } catch (err) {
@@ -427,9 +409,6 @@ document.addEventListener('DOMContentLoaded', () => {
     configurarLogout();
     activarEnlaceMenu();
     inicializar();
-
-    // Cargar campanita y tarjetas AL ENTRAR A LA PÁGINA
-    // Esto garantiza que el conteo no se pierda aunque navegues
     actualizarBadge();
     cargarNotificacionesPagina();
 

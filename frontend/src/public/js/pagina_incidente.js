@@ -8,9 +8,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // ── Nombre de usuario en el header ──
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const nombreUsuarioSpan = document.getElementById('nombreUsuario');
+  if (nombreUsuarioSpan) nombreUsuarioSpan.textContent = user.nombre || 'Operador';
+
   const ULTIMA_ESTACION_KEY = 'ultima_estacion_seleccionada';
 
-  // Elementos del DOM - incidentes
+  // Elementos DOM — incidentes
   const estacionActualSpan = document.getElementById('estacionActual');
   const btnNuevo           = document.getElementById('btnNuevoIncidente');
   const modal              = document.getElementById('modalNuevoIncidente');
@@ -20,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectEstacion     = document.getElementById('selectEstacion');
   const selectCabina       = document.getElementById('selectCabina');
 
-  // Elementos del DOM - campanita
+  // Elementos DOM — campanita
   const btnNotificaciones   = document.getElementById('btnNotificaciones');
   const modalNotificaciones = document.getElementById('modalNotificaciones');
   const modalNotifContent   = document.getElementById('modalNotifContent');
@@ -31,13 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let incidentesOriginales = [];
 
   // ════════════════════════════════════════════════
-  // CAMPANITA — badge + modal (igual que dashboard y pasajeros)
+  // CAMPANITA — badge + modal (CONGESTION + INCIDENTE)
   // ════════════════════════════════════════════════
 
-  // Actualizar badge al entrar a la página (persiste el conteo)
   async function actualizarBadge() {
     try {
-      const res = await fetch(`${API_BASE}/api/notificaciones/ignoradas`, {
+      const res = await fetch(`${API_BASE}/api/incidentes/notificaciones/todas`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error(res.status);
@@ -50,31 +54,28 @@ document.addEventListener('DOMContentLoaded', () => {
         notifBadge.classList.add('hidden');
       }
     } catch (err) {
-      console.error("Error badge notificaciones:", err);
+      console.error('Error badge notificaciones:', err);
       notifBadge.classList.add('hidden');
     }
   }
 
-  // Abrir modal campanita
   btnNotificaciones.addEventListener('click', async () => {
     modalNotificaciones.classList.remove('hidden');
     await cargarNotificacionesModal();
     await actualizarBadge();
   });
 
-  // Cerrar modal campanita
   cerrarModalNotif.addEventListener('click', () => modalNotificaciones.classList.add('hidden'));
   modalNotificaciones.addEventListener('click', (e) => {
     if (e.target === modalNotificaciones) modalNotificaciones.classList.add('hidden');
   });
 
-  // Cargar lista de notificaciones dentro del modal
   async function cargarNotificacionesModal() {
     modalNotifContent.innerHTML = '<p class="text-center text-gray-400 py-4">Cargando...</p>';
     sinPendientesModal.classList.add('hidden');
 
     try {
-      const res = await fetch(`${API_BASE}/api/notificaciones/ignoradas`, {
+      const res = await fetch(`${API_BASE}/api/incidentes/notificaciones/todas`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error(res.status);
@@ -88,15 +89,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       notifs.forEach(notif => {
+        // Diferenciar visualmente CONGESTION vs INCIDENTE
+        const esCongestion = notif.tipo === 'CONGESTION';
+        const iconColor    = esCongestion ? 'text-orange-400' : 'text-blue-400';
+        const bgColor      = esCongestion ? 'bg-red-900/40 border-red-700/40' : 'bg-blue-900/40 border-blue-700/40';
+        const etiqueta     = esCongestion ? '🚨 Congestión' : '📋 Incidente';
+
         const item = document.createElement('div');
-        item.className = 'bg-red-900/40 border border-red-700/40 p-4 rounded-xl hover:bg-red-800/50 transition';
+        item.className = `${bgColor} border p-4 rounded-xl transition`;
         item.innerHTML = `
           <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-orange-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 ${iconColor} mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
             <div class="flex-1">
+              <div class="flex items-center gap-2 mb-0.5">
+                <span class="text-xs font-semibold ${iconColor}">${etiqueta}</span>
+              </div>
               <p class="font-semibold text-white">${notif.titulo}</p>
               <p class="text-sm text-gray-300 mt-0.5">${notif.mensaje}</p>
               <p class="text-xs text-gray-400 mt-1">
@@ -110,16 +120,16 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
     } catch (err) {
-      console.error("Error modal notificaciones:", err);
+      console.error('Error modal notificaciones:', err);
       modalNotifContent.innerHTML = '<p class="text-red-400 text-center">Error al cargar notificaciones.</p>';
     }
   }
 
-  // Llamar al badge al cargar la página
+  // Badge al cargar la página
   actualizarBadge();
 
   // ════════════════════════════════════════════════
-  // LÓGICA DE INCIDENTES (sin cambios)
+  // INCIDENTES
   // ════════════════════════════════════════════════
 
   function actualizarEstacionHeader(nombre = 'Sin estación seleccionada') {
@@ -133,17 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
   async function mostrarEstacionEnHeader() {
     const ultimaId = getEstacionIdActual();
     if (!ultimaId) { actualizarEstacionHeader(); return; }
-
     try {
       const res = await fetch(`${API_BASE}/api/incidentes/estaciones/asignadas`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const estaciones = await res.json();
-      const estacion = estaciones.find(e => String(e.id_estacion) === String(ultimaId));
-      actualizarEstacionHeader(estacion?.nombre || 'Estación no asignada');
+      const est = estaciones.find(e => String(e.id_estacion) === String(ultimaId));
+      actualizarEstacionHeader(est?.nombre || 'Estación no asignada');
     } catch (err) {
-      console.error('Error al cargar nombre de estación:', err);
+      console.error('Error nombre estación:', err);
       actualizarEstacionHeader('Estación no disponible');
     }
   }
@@ -158,12 +167,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const data = await res.json();
 
-      document.getElementById('totalIncidentes').textContent = data.total    || 0;
-      document.getElementById('abiertos').textContent        = data.abiertos  || 0;
+      document.getElementById('totalIncidentes').textContent = data.total      || 0;
+      document.getElementById('abiertos').textContent        = data.abiertos   || 0;
       document.getElementById('enProceso').textContent       = data.en_proceso || 0;
       document.getElementById('resueltos').textContent       = data.resueltos  || 0;
     } catch (err) {
-      console.error('Error al cargar resumen:', err);
+      console.error('Error resumen:', err);
       ['totalIncidentes','abiertos','enProceso','resueltos'].forEach(id => {
         document.getElementById(id).textContent = 'Error';
       });
@@ -173,7 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
   async function cargarIncidentesRecientes() {
     const container = document.getElementById('incidentesRecientes');
     container.innerHTML = '<p class="text-center text-gray-400">Cargando incidentes recientes...</p>';
-
     try {
       const id_estacion = getEstacionIdActual();
       let url = `${API_BASE}/api/incidentes/recientes`;
@@ -185,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
       incidentesOriginales = await res.json();
       filtrarIncidentes();
     } catch (err) {
-      console.error('Error al cargar incidentes recientes:', err);
+      console.error('Error incidentes recientes:', err);
       container.innerHTML = '<p class="text-red-400 text-center">Error al cargar incidentes recientes</p>';
     }
   }
@@ -199,9 +207,28 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const userLocal  = JSON.parse(localStorage.getItem('user') || '{}');
+    const rolUsuario = userLocal.rol_nombre || '';
+
     incidentes.forEach(inc => {
       const severidadColor = { 'BAJO': 'blue', 'MEDIO': 'yellow', 'ALTO': 'orange', 'CRITICO': 'red' }[inc.nivel_criticidad] || 'gray';
       const estadoColor    = { 'ABIERTO': 'yellow', 'EN_PROCESO': 'orange' }[inc.estado] || 'gray';
+      const esOperativo    = inc.tipo === 'OPERATIVO';
+      const puedeResolver  = rolUsuario === 'OPERADOR' && esOperativo;
+
+      let accionHTML = '';
+      if (puedeResolver) {
+        accionHTML = `
+          <button class="resolver-btn text-green-400 hover:text-green-300 font-medium"
+                  data-id="${inc.id_incidente}">
+            ✔ Solucionar
+          </button>`;
+      } else if (inc.tipo === 'TECNICO') {
+        accionHTML = `
+          <span class="text-gray-400 text-xs italic">
+            🔧 Solo personal técnico puede resolver este incidente
+          </span>`;
+      }
 
       const card = document.createElement('div');
       card.className = `bg-white/5 border border-${severidadColor}-600/40 rounded-xl p-5 hover:bg-white/10 transition`;
@@ -219,25 +246,29 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="text-right">
             <span class="px-3 py-1 bg-${estadoColor}-800/50 text-${estadoColor}-300 rounded-full text-sm">${inc.estado}</span>
             <p class="text-xs text-gray-400 mt-2">${inc.nivel_criticidad}</p>
+            <p class="text-xs mt-1 ${esOperativo ? 'text-teal-400' : 'text-orange-400'}">${inc.tipo}</p>
           </div>
         </div>
-        <div class="mt-3 flex gap-4 text-sm">
+        <div class="mt-3 flex items-center gap-4 text-sm">
           <button class="text-teal-300 hover:text-teal-200 ver-detalles"
                   data-id="${inc.id_incidente}"
                   data-titulo="${inc.titulo.replace(/"/g, '&quot;')}"
                   data-descripcion="${inc.descripcion.replace(/"/g, '&quot;')}"
                   data-estado="${inc.estado}"
                   data-nivel="${inc.nivel_criticidad}"
+                  data-tipo="${inc.tipo}"
                   data-fecha="${inc.fecha_reporte}"
                   data-estacion="${inc.estacion || 'N/A'}"
                   data-reportado="${inc.reportado_por || 'Desconocido'}">
             Ver Detalles
           </button>
+          ${accionHTML}
         </div>
       `;
       container.appendChild(card);
     });
 
+    // Listeners Ver Detalles
     document.querySelectorAll('.ver-detalles').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const d = e.target.dataset;
@@ -245,6 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `INCIDENTE #${d.id}\n\n` +
           `Título: ${d.titulo}\n` +
           `Descripción: ${d.descripcion}\n\n` +
+          `Tipo: ${d.tipo}\n` +
           `Estado: ${d.estado}\n` +
           `Nivel: ${d.nivel}\n` +
           `Estación: ${d.estacion}\n` +
@@ -253,28 +285,63 @@ document.addEventListener('DOMContentLoaded', () => {
         );
       });
     });
+
+    // Listeners Solucionar
+    document.querySelectorAll('.resolver-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idInc = btn.dataset.id;
+        if (!confirm('¿Confirmas que este incidente operativo ha sido resuelto?')) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Resolviendo...';
+
+        try {
+          const res = await fetch(`${API_BASE}/api/incidentes/${idInc}/resolver`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const result = await res.json();
+
+          if (res.ok) {
+            btn.textContent = 'Resuelto ✓';
+            btn.classList.remove('text-green-400');
+            btn.classList.add('text-gray-400', 'cursor-not-allowed');
+            // Actualizar lista, resumen y badge
+            await cargarResumenIncidentes();
+            await cargarIncidentesRecientes();
+            await actualizarBadge();
+          } else {
+            alert(result.message || 'Error al resolver');
+            btn.disabled = false;
+            btn.textContent = '✔ Solucionar';
+          }
+        } catch (err) {
+          console.error('Error:', err);
+          alert('Error de conexión');
+          btn.disabled = false;
+          btn.textContent = '✔ Solucionar';
+        }
+      });
+    });
   }
 
   function filtrarIncidentes() {
-    const texto           = document.getElementById('searchInput')?.value?.toLowerCase().trim() || '';
+    const texto            = document.getElementById('searchInput')?.value?.toLowerCase().trim() || '';
     const criticidadFiltro = document.getElementById('filtroCriticidad')?.value || '';
 
     let filtrados = incidentesOriginales;
-
     if (texto) {
       filtrados = filtrados.filter(inc =>
-        (inc.titulo       || '').toLowerCase().includes(texto) ||
-        (inc.descripcion  || '').toLowerCase().includes(texto) ||
-        (inc.estacion     || '').toLowerCase().includes(texto) ||
-        (inc.reportado_por|| '').toLowerCase().includes(texto) ||
+        (inc.titulo        || '').toLowerCase().includes(texto) ||
+        (inc.descripcion   || '').toLowerCase().includes(texto) ||
+        (inc.estacion      || '').toLowerCase().includes(texto) ||
+        (inc.reportado_por || '').toLowerCase().includes(texto) ||
         String(inc.id_incidente).includes(texto)
       );
     }
-
     if (criticidadFiltro) {
       filtrados = filtrados.filter(inc => inc.nivel_criticidad === criticidadFiltro);
     }
-
     renderizarIncidentes(filtrados);
   }
 
@@ -283,7 +350,6 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarResumenIncidentes();
   cargarIncidentesRecientes();
 
-  // Listeners filtros
   document.getElementById('searchInput')?.addEventListener('input', filtrarIncidentes);
   document.getElementById('filtroCriticidad')?.addEventListener('change', filtrarIncidentes);
 
@@ -400,11 +466,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const resultado = await res.json();
       alert(`¡Incidente reportado!\nID: ${resultado.id}`);
       cerrarModal();
-      cargarResumenIncidentes();
-      cargarIncidentesRecientes();
+
+      // Recargar todo incluyendo badge
+      await cargarResumenIncidentes();
+      await cargarIncidentesRecientes();
+      await actualizarBadge();
+
     } catch (err) {
       console.error('Error registrar:', err);
       alert('No se pudo registrar.\n' + err.message);
     }
   });
+
+  // Logout
+// DESPUÉS
+document.getElementById('btnLogout')?.addEventListener('click', () => {
+    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    }
+});
 });
