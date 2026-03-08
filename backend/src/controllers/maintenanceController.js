@@ -45,10 +45,12 @@ exports.getSummary = async (req, res) => {
 
     // incidentes proximos en proceso (para llenar vista inicial)
     const [incProx] = await pool.query(
-      `SELECT i.id_incidente, i.titulo, i.id_estacion, e.nombre AS estacion_nombre, i.id_cabina, i.tipo, i.nivel_criticidad, i.fecha_reporte
+      `SELECT i.id_incidente, i.titulo, i.id_estacion, e.nombre AS estacion_nombre, i.id_cabina, c.codigo AS cabina_codigo, i.tipo, i.nivel_criticidad, i.fecha_reporte
        FROM incidentes i
        LEFT JOIN estaciones e ON e.id_estacion = i.id_estacion
+       LEFT JOIN cabinas c ON c.id_cabina = i.id_cabina
        WHERE i.estado IN ('EN_PROCESO','ABIERTO') AND i.id_estacion IN (${placeholders})
+       AND i.id_incidente NOT IN (SELECT id_incidente FROM mantenimientos WHERE id_incidente IS NOT NULL)
        ORDER BY i.fecha_reporte DESC
        LIMIT 5`,
       ids
@@ -153,21 +155,127 @@ exports.getCabinaByCode = async (req, res) => {
 
 exports.create = async (req, res) => {
   const userId = req.user?.id;
-  const { titulo, tipo, id_estacion, id_cabina, descripcion, fecha_programada, id_responsable } = req.body;
+  console.log('req.body en create:', req.body);
+  console.log('typeof req.body:', typeof req.body);
+  const { titulo, tipo, id_estacion, id_cabina, descripcion, fecha_programada, hora_programada, id_responsable, id_incidente } = req.body;
 
-  if (!titulo || !tipo || (!id_estacion && !id_cabina) || !descripcion) {
+  if (!titulo || !tipo || (!id_estacion && !id_cabina) || !descripcion || !fecha_programada || !hora_programada) {
     return res.status(400).json({ message: 'Faltan datos obligatorios' });
   }
 
+  const fechaHora = `${fecha_programada} ${hora_programada}:00`;
+
   try {
     const [result] = await pool.query(
-      `INSERT INTO mantenimientos (titulo_mantenimiento, tipo, descripcion, fecha_programada, estado, id_estacion, id_cabina, id_responsable)
-       VALUES (?, ?, ?, ?, 'EN_PROCESO', ?, ?, ?)`,
-      [titulo, tipo, descripcion, fecha_programada, id_estacion || null, id_cabina || null, id_responsable || null]
+      `INSERT INTO mantenimientos (titulo_mantenimiento, tipo, descripcion, fecha_programada, estado, id_estacion, id_cabina, id_responsable, id_incidente)
+       VALUES (?, ?, ?, ?, 'EN_PROCESO', ?, ?, ?, ?)`,
+      [titulo, tipo, descripcion, fechaHora, id_estacion || null, id_cabina || null, id_responsable || null, id_incidente || null]
     );
-    res.status(201).json({ success:true, id: result.insertId });
+
+    console.log('Mantenimiento creado con id:', result.insertId, 'id_incidente:', id_incidente);
+
+    // Si hay cabina, cambiar estado a MANTENIMIENTO
+    if (id_cabina) {
+      await pool.query('UPDATE cabinas SET estado = ? WHERE id_cabina = ?', ['MANTENIMIENTO', id_cabina]);
+    }
+
+    // Si hay incidente, marcar como en proceso
+    if (id_incidente) {
+      await pool.query('UPDATE incidentes SET estado = ? WHERE id_incidente = ?', ['EN_PROCESO', id_incidente]);
+    }
+
+    res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('Error crear mantenimiento:', err);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// obtener detalles de un incidente
+exports.getIncidentDetail = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT i.*, e.nombre AS estacion_nombre, c.codigo AS cabina_codigo
+       FROM incidentes i
+       LEFT JOIN estaciones e ON e.id_estacion = i.id_estacion
+       LEFT JOIN cabinas c ON c.id_cabina = i.id_cabina
+       WHERE i.id_incidente = ?`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Incidente no encontrado' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Error obteniendo detalle incidente:', err);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// editar mantenimiento
+exports.update = async (req, res) => {
+  const { id } = req.params;
+  const { titulo, tipo, id_estacion, id_cabina, descripcion, fecha_programada, hora_programada, id_responsable, estado } = req.body;
+
+  try {
+    const fechaHora = fecha_programada && hora_programada ? `${fecha_programada} ${hora_programada}:00` : null;
+    const [result] = await pool.query(
+      `UPDATE mantenimientos SET titulo_mantenimiento = ?, tipo = ?, descripcion = ?, fecha_programada = COALESCE(?, fecha_programada), id_estacion = ?, id_cabina = ?, id_responsable = ?, estado = ?
+       WHERE id_mantenimiento = ?`,
+      [titulo, tipo, descripcion, fechaHora, id_estacion || null, id_cabina || null, id_responsable || null, estado, id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Mantenimiento no encontrado' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error actualizando mantenimiento:', err);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// obtener un mantenimiento por id
+exports.getById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT m.*, e.nombre AS estacion_nombre, c.codigo AS cabina_codigo
+       FROM mantenimientos m
+       LEFT JOIN estaciones e ON e.id_estacion = m.id_estacion
+       LEFT JOIN cabinas c ON c.id_cabina = m.id_cabina
+       WHERE m.id_mantenimiento = ?`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Mantenimiento no encontrado' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Error obteniendo mantenimiento:', err);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// obtener el último incidente de una cabina por código
+exports.getLastIncidentByCabina = async (req, res) => {
+  const { codigo } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT i.*, e.nombre AS estacion_nombre
+       FROM incidentes i
+       LEFT JOIN estaciones e ON e.id_estacion = i.id_estacion
+       WHERE i.id_cabina = (SELECT id_cabina FROM cabinas WHERE codigo = ?)
+       ORDER BY i.fecha_reporte DESC
+       LIMIT 1`,
+      [codigo]
+    );
+    if (rows.length === 0) {
+      return res.json(null);
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Error obteniendo último incidente de cabina:', err);
     res.status(500).json({ message: 'Error interno' });
   }
 };

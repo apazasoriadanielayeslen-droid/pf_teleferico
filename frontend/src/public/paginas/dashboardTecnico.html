@@ -9,34 +9,145 @@
     body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center px-4">
+<body class="min-h-screen text-white flex">
 
-  <div class="w-full max-w-3xl bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl text-white">
-
-    <div class="text-center mb-8">
-      <h1 class="text-4xl font-bold">Mi Teleférico - Técnico</h1>
-      <p class="text-gray-200 mt-2">Gestión de Mantenimientos</p>
-      <p class="text-gray-300 mt-1">Bienvenid@ <span id="nombreUsuario"></span></p>
+  <!-- barra lateral -->
+  <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
+    <div class="p-6 border-b border-teal-700/50">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white">MT</div>
+        <div>
+          <h1 class="text-xl font-bold">Mi Teleférico</h1>
+          <p class="text-sm text-teal-300">Panel Técnico</p>
+        </div>
+      </div>
     </div>
 
-    <div class="text-right mb-8">
-      <button id="btnLogout" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+    <nav class="flex-1 px-4 py-6 space-y-2">
+      <a href="dashboardTecnico.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Pantalla Principal
+      </a>
+      <a href="paginaMantenimientos.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        Mantenimientos
+      </a>
+    </nav>
+
+    <div class="p-6 border-t border-teal-700/50 mt-auto">
+      <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/60 hover:bg-red-800/70 rounded-lg text-red-200 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
         Cerrar Sesión
       </button>
     </div>
+  </aside>
 
-    <section class="bg-white/10 border border-white/20 rounded-xl p-6">
-      <h3 class="text-xl font-semibold mb-4">Mantenimientos</h3>
-      <div class="space-y-4">
-        <button onclick="location.href='mantenimientos.html'" class="w-full bg-emerald-600 hover:bg-emerald-700 py-4 rounded-lg font-medium text-lg">
-          Gestionar Mantenimientos
-        </button>
-        <!-- Puedes agregar más botones aquí en el futuro, ej: ver historial, pendientes, etc. -->
+  <!-- contenido principal -->
+  <main class="flex-1 overflow-y-auto">
+    <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
+      <div class="max-w-full px-6 py-4 flex justify-between items-center">
+        <div>
+          <p class="font-medium">Bienvenido, <span id="nombreUsuario" class="text-teal-300"></span></p>
+          <p class="text-sm text-teal-300">Rol: <span id="rolUsuario"></span></p>
+          <p class="text-sm text-teal-300">Realización de Mantenimientos preventivos y correctivos</p>
+        </div>
+        <div class="flex items-center gap-6">
+          <button id="btnNotifications" class="relative text-teal-200 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            <span id="badgeNotifications" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">0</span>
+          </button>
+          <div id="notificationsDropdown" class="absolute top-12 right-0 mt-2 w-96 bg-white text-black rounded-lg shadow-lg hidden z-50 max-h-96 overflow-y-auto">
+            <div class="p-4">
+              <h3 class="font-bold mb-2">Notificaciones</h3>
+              <div id="notificationsList" class="space-y-2"></div>
+              <button id="markReadBtn" class="mt-2 px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600">Marcar como leídas</button>
+            </div>
+          </div>
+          <button id="btnUser" class="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center font-bold text-white hover:bg-teal-500 transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </button>
+        </div>
       </div>
-    </section>
+    </header>
 
+    <div class="p-6 max-w-7xl mx-auto space-y-8">
+      <!-- métricas principales -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Mantenimientos En Proceso</p>
+          <p id="mantenimientosEnProceso" class="text-3xl font-bold mt-1">0</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Mantenimientos Preventivos</p>
+          <p id="mantenimientosPreventivos" class="text-3xl font-bold mt-1">0</p>
+        </div>
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+          <p class="text-sm text-gray-300">Mantenimientos Correctivos</p>
+          <p id="mantenimientosCorrectivos" class="text-3xl font-bold mt-1">0</p>
+        </div>
+      </div>
+
+      <!-- mantenimientos asignados -->
+      <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+        <h2 class="text-2xl font-bold mb-4">Mantenimientos Asignados</h2>
+        <div id="listaMantenimientos" class="space-y-4"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal para detalle de mantenimiento -->
+  <div id="modalDetalle" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white text-black rounded-lg p-6 max-w-lg w-full mx-4">
+      <h3 class="text-xl font-bold mb-4">Detalle del Mantenimiento</h3>
+      <div id="detalleContent"></div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="btnFinalizar" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Finalizar</button>
+        <button id="closeModalDetalle" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cerrar</button>
+      </div>
+    </div>
   </div>
 
-  <script src="../js/dashboard_comun.js"></script>
+  <!-- Modal para confirmación de finalización -->
+  <div id="modalConfirmar" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white text-black rounded-lg p-6 max-w-md w-full mx-4">
+      <h3 class="text-xl font-bold mb-4">Confirmar Finalización</h3>
+      <p>¿Estás seguro de que deseas finalizar este mantenimiento?</p>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="btnConfirmarFinalizar" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Confirmar</button>
+        <button id="btnCancelarFinalizar" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para notificación -->
+  <div id="modalNotificacion" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white text-black rounded-lg p-6 max-w-md w-full mx-4">
+      <h3 class="text-xl font-bold mb-4">Enviar Notificación</h3>
+      <form id="formNotificacion">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Título</label>
+          <input type="text" id="notifTitulo" class="w-full px-3 py-2 border rounded" readonly>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Técnico Encargado</label>
+          <input type="text" id="notifTecnico" class="w-full px-3 py-2 border rounded" readonly>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Mensaje</label>
+          <textarea id="notifMensaje" class="w-full px-3 py-2 border rounded" rows="3" placeholder="Detalles del mantenimiento realizado"></textarea>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Tipo</label>
+          <input type="text" id="notifTipo" class="w-full px-3 py-2 border rounded" readonly>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" id="btnCancelarNotif" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Enviar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/dashboardTecnico.js"></script>
 </body>
 </html>

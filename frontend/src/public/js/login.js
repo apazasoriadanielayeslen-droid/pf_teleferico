@@ -44,8 +44,10 @@ async function handleLogin(e) {
                     case 'SUPERVISOR':
                         window.location.href = './dashboardSupervisor.html';
                         break;
-                    case 'ADMINISTRADOR':
                     case 'TECNICO':
+                        window.location.href = './dashboardTecnico.html';
+                        break;
+                    case 'ADMINISTRADOR':
                     case 'OPERADOR':
                     default:
                         window.location.href = './dashboard_principal.html';

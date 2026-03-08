@@ -18,7 +18,60 @@ document.addEventListener('DOMContentLoaded', () => {
   const countCompHoy = document.getElementById('countCompletadosHoy');
   const sectionConteos = document.getElementById('sectionConteos');
 
+  let cabinasList = [];
+  let stationsList = [];
   let proximosList = [];
+  const modal = document.getElementById('modalForm');
+  const btnNew = document.getElementById('btnNew');
+  const btnClose = document.getElementById('closeModal');
+  const btnCancel = document.getElementById('btnCancel');
+  const form = document.getElementById('maintForm');
+  async function fetchCabinas() {
+    try {
+      const r = await fetch(`${API_URL}/api/supervisor/cabinas`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      cabinasList = await r.json();
+      const datalist = document.getElementById('cabinasList');
+      datalist.innerHTML = '';
+      cabinasList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.codigo;
+        datalist.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
+  async function fetchStations() {
+    try {
+      const r = await fetch(`${API_URL}/api/supervisor/stations`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      stationsList = await r.json();
+      const sel = document.getElementById('inpEstacion');
+      sel.innerHTML = '<option value="">-- seleccionar --</option>';
+      stationsList.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id_estacion;
+        o.innerHTML = `${s.nombre} <span style='color:#888;'>(${s.ubicacion || ''})</span>`;
+        sel.appendChild(o);
+      });
+    } catch (err) { console.error(err); }
+  }
+  async function fetchTechs() {
+    const resp = await fetch(`${API_URL}/api/supervisor/maint/technicians`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    return await resp.json();
+  }
+
+  function showModal() {
+    modal.classList.remove('hidden');
+  }
+  function hideModal() {
+    modal.classList.add('hidden');
+    form.reset();
+    document.getElementById('inpIncidenteId').value = '';
+  }
   // proximosList now holds incident objects from API
   function updateSummary() {
     return fetch(`${API_URL}/api/supervisor/maint/summary`, {
@@ -74,9 +127,42 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('inpTitulo').value = item.titulo_mantenimiento;
         });
       });
-      // detalle/editar stubs
-      document.querySelectorAll('.btnDetalle').forEach(b => { b.addEventListener('click', () => alert('Detalle aún no implementado')); });
-      document.querySelectorAll('.btnEditar').forEach(b => { b.addEventListener('click', () => alert('Editar aún no implementado')); });
+      // detalle/editar
+      document.querySelectorAll('.btnDetalle').forEach(b => {
+        b.addEventListener('click', async () => {
+          const id = b.dataset.id;
+          try {
+            const r = await fetch(`${API_URL}/api/supervisor/maint/${id}`, {
+              headers: { Authorization: 'Bearer ' + token }
+            });
+            const data = await r.json();
+            if (r.ok) {
+              alert(`Detalle:\nTítulo: ${data.titulo_mantenimiento}\nTipo: ${data.tipo}\nEstado: ${data.estado}\nFecha: ${data.fecha_programada}\nDescripción: ${data.descripcion}`);
+            }
+          } catch (err) { console.error(err); }
+        });
+      });
+      document.querySelectorAll('.btnEditar').forEach(b => {
+        b.addEventListener('click', async () => {
+          const id = b.dataset.id;
+          try {
+            const r = await fetch(`${API_URL}/api/supervisor/maint/${id}`, {
+              headers: { Authorization: 'Bearer ' + token }
+            });
+            const data = await r.json();
+            if (r.ok) {
+              // prefill modal
+              showModal();
+              document.getElementById('inpTitulo').value = data.titulo_mantenimiento;
+              document.getElementById('inpFecha').value = data.fecha_programada.split(' ')[0];
+              document.getElementById('inpHora').value = data.fecha_programada.split(' ')[1] || '';
+              document.getElementById('inpDescripcion').value = data.descripcion;
+              // change submit to update
+              form.dataset.editId = id;
+            }
+          } catch (err) { console.error(err); }
+        });
+      });
     }).catch(err => console.error(err));
   }
 
@@ -156,12 +242,41 @@ document.addEventListener('DOMContentLoaded', () => {
                      <div class="font-semibold">${emoji} ${m.titulo}</div>
                      <div class="text-sm text-gray-300">${new Date(m.fecha_reporte).toLocaleString()}<br><span class="italic text-gray-400">Estación: ${m.estacion_nombre||'-'}</span></div>
                    </div>
-                   <button data-id="${m.id_incidente}" class="btnIniciar text-blue-500 hover:underline">Iniciar</button>
+                   <div class="flex gap-2">
+                     <button data-id="${m.id_incidente}" class="btnVerDetalle text-green-500 hover:underline">Ver detalle</button>
+                     ${m.tipo !== 'OPERATIVO' ? `<button data-id="${m.id_incidente}" class="btnIniciar text-blue-500 hover:underline">Iniciar</button>` : ''}
+                   </div>
                  </div>`;
       });
     }
     html += '</div>';
     container.innerHTML = html;
+
+    document.querySelectorAll('.btnVerDetalle').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        const id = e.target.dataset.id;
+        try {
+          const r = await fetch(`${API_URL}/api/supervisor/maint/incident/${id}`, {
+            headers: { Authorization: 'Bearer ' + token }
+          });
+          const data = await r.json();
+          if (r.ok) {
+            const content = document.getElementById('detalleIncidenteContent');
+            content.innerHTML = `
+              <p><strong>Título:</strong> ${data.titulo}</p>
+              <p><strong>Tipo:</strong> ${data.tipo}</p>
+              <p><strong>Nivel:</strong> ${data.nivel_criticidad}</p>
+              <p><strong>Estado:</strong> ${data.estado}</p>
+              <p><strong>Fecha Reporte:</strong> ${new Date(data.fecha_reporte).toLocaleString()}</p>
+              <p><strong>Estación:</strong> ${data.estacion_nombre || '-'}</p>
+              <p><strong>Cabina:</strong> ${data.cabina_codigo || '-'}</p>
+              <p><strong>Descripción:</strong> ${data.descripcion || '-'}</p>
+            `;
+            document.getElementById('modalDetalleIncidente').classList.remove('hidden');
+          }
+        } catch (err) { console.error(err); }
+      });
+    });
 
     document.querySelectorAll('.btnIniciar').forEach(btn => {
       btn.addEventListener('click', async e => {
@@ -170,131 +285,117 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item) return;
         showModal();
         document.getElementById('inpTitulo').value = item.titulo;
+        document.getElementById('inpEstacion').value = item.id_estacion || '';
+        document.getElementById('inpCabina').value = item.cabina_codigo || '';
+        document.getElementById('inpIncidenteId').value = id;
         // clear other fields
-        document.getElementById('inpTipo').value = 'PREVENTIVO';
-        document.getElementById('inpActivo').value = 'cabina';
-        document.getElementById('containerCodigoEstacion').innerHTML = '';
-        document.getElementById('inpUbicacion').value = '';
       });
     });
   }
-  const modal = document.getElementById('modalForm');
-  const btnNew = document.getElementById('btnNew');
-  const btnClose = document.getElementById('closeModal');
-  const btnCancel = document.getElementById('btnCancel');
-  const form = document.getElementById('maintForm');
-  let stationsList = [];
-
-  async function fetchStations() {
-    const resp = await fetch(`${API_URL}/api/supervisor/stations`, {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    stationsList = await resp.json();
-  }
-
-  async function fetchTechs() {
-    const resp = await fetch(`${API_URL}/api/supervisor/maint/technicians`, {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    return await resp.json();
-  }
-
-  function showModal() {
-    modal.classList.remove('hidden');
-  }
-  function hideModal() {
-    modal.classList.add('hidden');
-    form.reset();
-    document.getElementById('containerCodigoEstacion').innerHTML = '';
-    document.getElementById('inpUbicacion').value = '';
-  }
-
   btnNew.addEventListener('click', async () => {
-    await fetchTechs().then(list => {
-      const sel = document.getElementById('inpTecnico');
-      sel.innerHTML = '<option value="">-- seleccionar --</option>';
-      list.forEach(t => {
-        const o = document.createElement('option');
-        o.value = t.id_personal;
-        o.textContent = t.nombre;
-        sel.appendChild(o);
-      });
-    }).catch(console.error);
+    const list = await fetchTechs();
+    const sel = document.getElementById('inpTecnico');
+    sel.innerHTML = '<option value="">-- seleccionar --</option>';
+    list.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.id_personal;
+      o.textContent = t.nombre;
+      sel.appendChild(o);
+    });
     await fetchStations();
+    await fetchCabinas();
     showModal();
   });
   btnClose.addEventListener('click', hideModal);
   btnCancel.addEventListener('click', hideModal);
 
-  // activo change handler
-  document.getElementById('inpActivo').addEventListener('change', e => {
-    const container = document.getElementById('containerCodigoEstacion');
-    container.innerHTML = '';
-    const val = e.target.value;
-    if (val === 'cabina') {
-      container.innerHTML = `<label class="block">Código Cabina</label><input id="inpCodigo" type="text" class="w-full border rounded px-3 py-2" />`;
-      const codigoInput = document.getElementById('inpCodigo');
-      codigoInput.addEventListener('blur', async () => {
-        const code = codigoInput.value.trim();
-        if (!code) return;
-        try {
-          const r = await fetch(`${API_URL}/api/supervisor/maint/cabina/code/${code}`, {
-            headers: { Authorization: 'Bearer ' + token }
-          });
-          const data = await r.json();
-          if (r.ok && data.id_cabina) {
-            document.getElementById('inpUbicacion').value = data.id_cabina;
-          } else {
-            alert('Código de cabina no encontrado');
-            document.getElementById('inpUbicacion').value = '';
-          }
-        } catch (err) { console.error(err); }
-      });
-    } else if (val === 'estacion') {
-      let html = '<label class="block">Estación</label><select id="selEstacion" class="w-full border rounded px-3 py-2"><option value="">-- elegir --</option>';
-      stationsList.forEach(st => {
-        html += `<option value="${st.id_estacion}">${st.nombre}</option>`;
-      });
-      html += '</select>';
-      container.innerHTML = html;
-      document.getElementById('selEstacion').addEventListener('change', ev => {
-        const selVal = ev.target.value;
-        const selected = stationsList.find(s => s.id_estacion == selVal);
-        document.getElementById('inpUbicacion').value = selected ? selected.nombre : '';
-      });
-    }
+  document.getElementById('closeDetalleIncidente').addEventListener('click', () => {
+    document.getElementById('modalDetalleIncidente').classList.add('hidden');
   });
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const titulo = document.getElementById('inpTitulo').value.trim();
-    const tipo = document.getElementById('inpTipo').value;
-    const activo = document.getElementById('inpActivo').value;
-    let id_est = null, id_cab = null;
-    if (activo === 'cabina') {
-      id_cab = document.getElementById('inpUbicacion').value;
-    } else {
-      id_est = document.getElementById('selEstacion')?.value || null;
-    }
+    // Si no tienes select de tipo, puedes ponerlo fijo:
+    const tipo = 'PREVENTIVO';
+    const id_est = document.getElementById('inpEstacion').value;
+    const cabinaCode = document.getElementById('inpCabina').value;
+    const foundCab = cabinasList.find(c => c.codigo === cabinaCode);
+    const id_cab = foundCab ? foundCab.id_cabina : null;
     const descripcion = document.getElementById('inpDescripcion').value.trim();
     const fecha = document.getElementById('inpFecha').value;
+    const hora = document.getElementById('inpHora').value;
     const id_resp = document.getElementById('inpTecnico').value || null;
 
+    // Validaciones básicas
+    if (!titulo) return alert('El título es obligatorio');
+    if (!id_est) return alert('Debes seleccionar una estación');
+    if (!cabinaCode) return alert('Debes ingresar el código de cabina');
+    if (!descripcion) return alert('La descripción es obligatoria');
+    if (!fecha) return alert('La fecha es obligatoria');
+    if (!hora) return alert('La hora es obligatoria');
+
+    const editId = form.dataset.editId;
+    const incidenteId = document.getElementById('inpIncidenteId').value || null;
+    delete form.dataset.editId;
+
     try {
-      const resp = await fetch(`${API_URL}/api/supervisor/maint/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ titulo, tipo, id_estacion: id_est, id_cabina: id_cab, descripcion, fecha_programada: fecha, id_responsable: id_resp })
-      });
+      let resp;
+      if (editId) {
+        const data = {
+          titulo,
+          tipo,
+          id_estacion: id_est,
+          id_cabina: id_cab,
+          descripcion,
+          fecha_programada: fecha,
+          hora_programada: hora,
+          id_responsable: id_resp,
+          estado: 'EN_PROCESO',
+          id_incidente: incidenteId
+        };
+        resp = await fetch(`${API_URL}/api/supervisor/maint/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify(data)
+        });
+      } else {
+        const data = {
+          titulo,
+          tipo,
+          id_estacion: id_est,
+          id_cabina: id_cab,
+          descripcion,
+          fecha_programada: fecha,
+          hora_programada: hora,
+          id_responsable: id_resp,
+          id_incidente: incidenteId
+        };
+        resp = await fetch(`${API_URL}/api/supervisor/maint/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify(data)
+        });
+      }
       if (resp.ok) {
-        alert('Mantenimiento programado');
+        alert(editId ? 'Mantenimiento actualizado' : 'Mantenimiento programado');
         hideModal();
         updateSummary();
       } else {
-        const msg = await resp.json();
-        alert(msg.message || 'Error al guardar');
+        const text = await resp.text();
+        let errorMsg = `Error ${resp.status}: ${resp.statusText}`;
+        try {
+          const errorData = JSON.parse(text);
+          errorMsg += ' - ' + (errorData.message || 'Error desconocido');
+        } catch (e) {
+          errorMsg += ' - ' + text.substring(0, 200);
+        }
+        alert(errorMsg);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      alert('Error de red o del servidor. Intenta de nuevo.');
+      console.error(err);
+    }
   });
 
 

@@ -32,6 +32,10 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
         Mantenimientos
       </a>
+      <a href="paginaCabinasSupervisor.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Cabinas
+      </a>
     </nav>
 
     <div class="p-6 border-t border-teal-700/50 mt-auto">
@@ -111,32 +115,27 @@
         <button id="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-black">✖</button>
         <h2 class="text-xl font-bold mb-4">+ Programar Mantenimiento</h2>
         <form id="maintForm" class="space-y-4">
+          <input type="hidden" id="inpIncidenteId" />
           <div>
             <label class="block">Título de la tarea</label>
             <input id="inpTitulo" type="text" class="w-full border rounded px-3 py-2" required />
           </div>
           <div>
-            <label class="block">Tipo de mantenimiento</label>
-            <select id="inpTipo" class="w-full border rounded px-3 py-2">
-              <option value="PREVENTIVO">PREVENTIVO</option>
-              <option value="CORRECTIVO">CORRECTIVO</option>
-            </select>
+            <label class="block">Estacion</label>
+            <select id="inpEstacion" class="w-full border rounded px-3 py-2" required></select>
           </div>
           <div>
-            <label class="block">Tipo de activo</label>
-            <select id="inpActivo" class="w-full border rounded px-3 py-2">
-              <option value="cabina">Cabina</option>
-              <option value="estacion">Estación</option>
-            </select>
-          </div>
-          <div id="containerCodigoEstacion"></div>
-          <div>
-            <label class="block">Ubicación/ID</label>
-            <input id="inpUbicacion" type="text" class="w-full border rounded px-3 py-2" readonly />
+            <label class="block">Cabina</label>
+            <input id="inpCabina" type="text" list="cabinasList" class="w-full border rounded px-3 py-2" required />
+            <datalist id="cabinasList"></datalist>
           </div>
           <div>
             <label class="block">Fecha Programada</label>
             <input id="inpFecha" type="date" class="w-full border rounded px-3 py-2" required />
+          </div>
+          <div>
+            <label class="block">Hora Programada</label>
+            <input id="inpHora" type="time" class="w-full border rounded px-3 py-2" required />
           </div>
           <div>
             <label class="block">Técnico Asignado</label>
@@ -154,6 +153,26 @@
             <button type="button" id="btnCancel" class="px-4 py-2 bg-gray-300 rounded">Cancelar</button>
             <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Programar Mantenimiento</button>
           </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- modal ver detalle incidente -->
+    <div id="modalDetalleIncidente" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50">
+      <div class="bg-white text-black rounded-xl w-full max-w-lg p-6 relative">
+        <button id="closeDetalleIncidente" class="absolute top-4 right-4 text-gray-500 hover:text-black">✖</button>
+        <h2 class="text-xl font-bold mb-4">Detalle del Incidente</h2>
+        <div id="detalleIncidenteContent" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- modal editar mantenimiento -->
+    <div id="modalEditarMantenimiento" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50">
+      <div class="bg-white text-black rounded-xl w-full max-w-xl p-6 relative">
+        <button id="closeEditarMantenimiento" class="absolute top-4 right-4 text-gray-500 hover:text-black">✖</button>
+        <h2 class="text-xl font-bold mb-4">Editar Mantenimiento</h2>
+        <form id="editMaintForm" class="space-y-4">
+          <!-- similar al form principal -->
         </form>
       </div>
     </div>

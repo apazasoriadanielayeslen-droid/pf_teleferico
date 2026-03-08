@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+
 require("dotenv").config();
 
 const db = require("./src/config/conexion");
@@ -8,6 +9,7 @@ const db = require("./src/config/conexion");
 const authRoutes = require('./src/routes/auth');
 const supervisorRoutes = require('./src/routes/supervisor');
 const maintRoutes = require('./src/routes/maintenance');
+const tecnicoRoutes = require('./src/routes/tecnico');
 const estacionesRouter = require('./src/routes/estaciones');
 const flujopaCtrl = require('./src/controllers/flujopaController');
 
@@ -20,6 +22,7 @@ const PORT = process.env.PORT || 3000;
 // Middlewares globales
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // =======================
 // RUTAS
@@ -27,6 +30,7 @@ app.use(express.json());
 app.use('/api', authRoutes);
 app.use('/api/supervisor', supervisorRoutes);
 app.use('/api/supervisor/maint', maintRoutes);
+app.use('/api/tecnico', tecnicoRoutes);
 app.use('/api/estaciones', estacionesRouter);
 
 // Rutas de flujo de pasajeros (protegidas con token)

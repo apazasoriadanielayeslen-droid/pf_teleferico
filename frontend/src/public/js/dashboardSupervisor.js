@@ -31,9 +31,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function configurarIconos() {
     const bell = document.getElementById('btnNotifications');
-    if (bell) {
-      bell.addEventListener('click', () => {
-        window.location.href = 'paginaIncidentes.html';
+    const dropdown = document.getElementById('notificationsDropdown');
+    if (bell && dropdown) {
+      bell.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+        if (!dropdown.classList.contains('hidden')) {
+          await cargarNotificaciones();
+        }
+      });
+      // cerrar dropdown al hacer click fuera
+      document.addEventListener('click', (e) => {
+        if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
       });
     }
     const userBtn = document.getElementById('btnUser');
@@ -60,8 +71,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function cargarDatos() {
+    const fecha = document.getElementById('filtroFecha').value;
+    const nivel = document.getElementById('filtroNivel').value;
+    const tipo = document.getElementById('filtroTipo').value;
+    const estado = document.getElementById('filtroEstado').value;
+    const orden = document.getElementById('filtroOrden').value;
+
+    const params = new URLSearchParams();
+    if (fecha) params.append('fecha', fecha);
+    if (nivel) params.append('nivel', nivel);
+    if (tipo) params.append('tipo', tipo);
+    if (estado) params.append('estado', estado);
+    if (orden) params.append('orden', orden);
+
     try {
-      const res = await fetch(`${API_URL}/api/supervisor/overview`, {
+      const res = await fetch(`${API_URL}/api/supervisor/overview?${params}`, {
         headers: { Authorization: 'Bearer ' + token }
       });
       if (!res.ok) {
@@ -75,18 +99,29 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('cabinasEnRuta').textContent = data.cabinasEnRuta;
       document.getElementById('alertasEnProceso').textContent = data.alertasEnProceso;
       document.getElementById('incidentesActivos').textContent = data.incidentesActivos;
-      // actualizar badge de campana
-      const badge = document.getElementById('badgeIncidentes');
-      if (badge) badge.textContent = data.incidentesActivos;
+
+      // cargar notificaciones para actualizar badge
+      cargarNotificaciones();
 
       // estaciones en tiempo real
       const lista = document.getElementById('listaEstaciones');
       lista.innerHTML = '';
       data.estaciones.forEach(est => {
-        const color = est.estado === 'ACTIVA' ? 'bg-green-400' : 'bg-red-400';
+        let color = 'bg-green-400';
+        let estadoTexto = 'ACTIVA';
+        if (est.estado === 'MANTENIMIENTO') {
+          color = 'bg-orange-400';
+          estadoTexto = 'MANTENIMIENTO';
+        } else if (est.estado === 'BLOQUEADA') {
+          color = 'bg-black';
+          estadoTexto = 'BLOQUEADA';
+        } else if (est.estado === 'INACTIVA') {
+          color = 'bg-red-400';
+          estadoTexto = 'INACTIVA';
+        }
         const li = document.createElement('li');
         li.className = 'flex items-center gap-2';
-        li.innerHTML = `<span class="w-2 h-2 ${color} rounded-full"></span>${est.nombre}`;
+        li.innerHTML = `<span class="w-2 h-2 ${color} rounded-full"></span>${est.nombre} <span class="text-gray-400">(${est.ubicacion || 'Sin ubicación'})</span> (${estadoTexto})`;
         lista.appendChild(li);
       });
 
@@ -122,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fecha = new Date(alert.fecha_reporte).toLocaleString();
         div.innerHTML = `<div class="flex justify-between"><div><span class="mr-2">${emoji}</span><span class="font-semibold">${alert.titulo}</span></div><span class="text-xs text-gray-400">${fecha}</span></div><p class="text-sm text-gray-300 mt-1">Estación: ${alert.estacion_nombre || alert.id_estacion}</p>`;
         div.addEventListener('click', () => {
-          window.location.href = 'paginaIncidentes.html';
+          window.location.href = 'paginaMantenimientos.html';
         });
         listaA.appendChild(div);
       });
@@ -132,8 +167,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function cargarNotificaciones() {
+    try {
+      const res = await fetch(`${API_URL}/api/supervisor/notifications`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!res.ok) {
+        console.error('Error en llamada API notificaciones', res.status);
+        return;
+      }
+      const data = await res.json();
+      const lista = document.getElementById('notificationsList');
+      lista.innerHTML = '';
+      if (data.length === 0) {
+        lista.innerHTML = '<p class="text-gray-500">No hay notificaciones nuevas.</p>';
+      } else {
+        data.forEach(notif => {
+          const div = document.createElement('div');
+          div.className = 'p-2 bg-gray-100 rounded border-l-4 border-teal-500';
+          const fecha = new Date(notif.fecha).toLocaleString();
+          div.innerHTML = `<div class="font-semibold">${notif.nombre_personal}</div><div class="text-sm text-gray-600">${notif.mensaje}</div><div class="text-sm text-gray-600">Tipo: ${notif.tipo}</div><div class="text-sm text-gray-600">Incidente: ${notif.titulo_incidente} - ${notif.detalle_incidente}</div><div class="text-xs text-gray-400">${fecha}</div>`;
+          lista.appendChild(div);
+        });
+        // Agregar botón para marcar como leídas
+        const markButton = document.createElement('button');
+        markButton.textContent = 'Marcar como leídas';
+        markButton.className = 'mt-2 px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600';
+        markButton.addEventListener('click', async () => {
+          await fetch(`${API_URL}/api/supervisor/notifications/mark-read`, {
+            method: 'PUT',
+            headers: { Authorization: 'Bearer ' + token }
+          });
+          await cargarNotificaciones(); // recargar para actualizar
+        });
+        lista.appendChild(markButton);
+      }
+      // actualizar badge con el número de notificaciones
+      const badge = document.getElementById('badgeNotifications');
+      if (badge) badge.textContent = data.length;
+    } catch (err) {
+      console.error('Error cargando notificaciones:', err);
+    }
+  }
+
+  function configurarFiltros() {
+    const filtros = ['filtroFecha', 'filtroNivel', 'filtroTipo', 'filtroEstado', 'filtroOrden'];
+    filtros.forEach(id => {
+      document.getElementById(id).addEventListener('change', cargarDatos);
+    });
+  }
+
   activarEnlaceMenu();
   configurarLogout();
   configurarIconos();
+  configurarFiltros();
   cargarDatos();
 });
