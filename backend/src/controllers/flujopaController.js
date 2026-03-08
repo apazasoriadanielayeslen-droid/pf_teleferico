@@ -266,7 +266,7 @@ const getFlujoHoy = async (req, res) => {
             FROM flujo_pasajeros
             WHERE id_estacion = ? 
               AND DATE(fecha) = CURDATE()
-              AND HOUR(fecha) BETWEEN 5 AND 23          -- ← HORARIO OPERATIVO
+              AND HOUR(fecha) BETWEEN 0 AND 23          -- ← HORARIO OPERATIVO
             GROUP BY HOUR(fecha)
             ORDER BY hora ASC
         `, [id_estacion]);
@@ -309,16 +309,17 @@ const getFlujoAyer = async (req, res) => {
     }
 };
 
-// ... resto del código igual ...
 
 const getNotificacionesIgnoradas = async (req, res) => {
     const id_personal = req.user.id;
+    const { estacion } = req.query; // ← recibe estación seleccionada
 
     const conn = await pool.getConnection();
     try {
-        const [rows] = await conn.execute(`
+        let query = `
             SELECT 
                 n.id_notificacion, 
+                n.id_incidente,
                 n.titulo, 
                 n.mensaje, 
                 n.fecha, 
@@ -331,9 +332,18 @@ const getNotificacionesIgnoradas = async (req, res) => {
               AND n.tipo = 'CONGESTION' 
               AND n.leido = FALSE
               AND n.estado = 'PENDIENTE'
-            ORDER BY n.fecha DESC
-        `, [id_personal]);
+        `;
+        const params = [id_personal];
 
+        // FIX: Si viene estación específica, filtrar solo por esa
+        if (estacion && !isNaN(Number(estacion))) {
+            query += ` AND i.id_estacion = ?`;
+            params.push(Number(estacion));
+        }
+
+        query += ` ORDER BY n.fecha DESC`;
+
+        const [rows] = await conn.execute(query, params);
         res.json(rows);
     } catch (err) {
         console.error("Error al obtener notificaciones ignoradas:", err);

@@ -169,7 +169,7 @@ exports.getNotifications = async (req, res) => {
        FROM notificaciones n
        JOIN personal p ON p.id_personal = n.id_personal
        LEFT JOIN incidentes i ON i.id_incidente = n.id_incidente
-       WHERE n.id_personal IN (${opPlaceholders}) AND n.estado = 'ENVIADO' AND n.leido = 0
+       WHERE n.id_personal IN (${opPlaceholders}) AND n.estado = 'PENDIENTE' AND n.leido = 0
        ORDER BY n.fecha DESC`,
       opIds
     );
