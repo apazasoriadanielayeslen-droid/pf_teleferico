@@ -114,11 +114,5 @@ app.listen(PORT, async () => {
         ? `open "${loginPath}"`
         : `xdg-open "${loginPath}"`;
 
-    exec(comando, (err) => {
-        if (err) {
-            console.error('❌ No se pudo abrir el navegador:', err.message);
-        } else {
-            console.log('🌐 Navegador abierto con login.html');
-        }
-    });
+    
 });
