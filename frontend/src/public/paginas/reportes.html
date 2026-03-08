@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard Administrador - Mi Teleférico</title>
+  <title>Reportes - Mi Teleférico</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
@@ -31,7 +31,7 @@
         <a href="roles.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🛡️ Roles</a>
         <a href="estaciones.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🚉 Estaciones</a>
         <a href="cabinas.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🚠 Cabinas</a>
-        <a href="reportes.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">📊 Reportes</a>
+        <a href="reportes.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition bg-teal-800">📊 Reportes</a>
       </nav>
 
       <div class="p-6 border-t border-teal-700/50 mt-auto">
@@ -44,50 +44,64 @@
 
     <!-- Contenido principal -->
     <main class="flex-1 overflow-y-auto">
-
-      <!-- Header superior con usuario -->
+      <!-- Header superior -->
       <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
         <div class="max-w-full px-6 py-4 flex justify-between items-center">
-          <h1 class="text-3xl font-bold">Panel de Administración</h1>
-
-          <div class="flex items-center gap-4">
-            <!-- Notificaciones -->
-            <button class="relative text-teal-200 hover:text-white transition">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-              </svg>
-              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">3</span>
-            </button>
-
-            <!-- Usuario -->
-            <div class="flex items-center gap-3">
-              <div class="text-right">
-                <p class="font-medium">Bienvenid@, <span id="nombreUsuario" class="text-teal-300"></span></p>
-                <p class="text-sm text-teal-300" id="rolUsuario"></p>
-              </div>
-              <div class="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center font-bold">AD</div>
-            </div>
-          </div>
+          <h1 class="text-3xl font-bold mb-6">📊 Reportes del Sistema</h1>
         </div>
       </header>
 
       <!-- Contenido -->
       <div class="p-6 max-w-7xl mx-auto">
+        <!-- Estado operativo -->
+  <section class="mb-8">
+    <h2 class="text-xl font-bold mb-2">1. Estado Operativo en Tiempo Real</h2>
+    <button onclick="cargarEstadoOperativo()" class="bg-green-600 px-4 py-2 rounded">Actualizar</button>
+    <div id="estadoOperativo" class="mt-4"></div>
+  </section>
 
-        <!-- Tarjetas estadísticas -->
-        <div id="stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10"></div>
+  <!-- Flujo por rango horario -->
+  <section class="mb-8">
+    <h2 class="text-xl font-bold mb-2">2. Flujo por Rango Horario</h2>
+    <form onsubmit="cargarFlujo(event)" class="space-x-2">
+      <input type="datetime-local" id="flujoInicio" required>
+      <input type="datetime-local" id="flujoFin" required>
+      <button type="submit" class="bg-blue-600 px-4 py-2 rounded">Generar</button>
+    </form>
+    <div id="reporteFlujo" class="mt-4"></div>
+  </section>
 
-        <!-- Reportes rápidos -->
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6">
-          <h3 class="text-2xl font-semibold mb-6">Resumen del Sistema</h3>
-          <div id="flujoStats" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center"></div>
-        </div>
+  <button id="descargarFlujo">Descargar PDF</button>
 
+  <!-- Historial de incidentes -->
+  <section class="mb-8">
+    <h2 class="text-xl font-bold mb-2">3. Historial de Incidentes</h2>
+    <form onsubmit="cargarIncidentes(event)" class="space-x-2">
+      <input type="date" id="incidentesInicio" required>
+      <input type="date" id="incidentesFin" required>
+      <button type="submit" class="bg-red-600 px-4 py-2 rounded">Generar</button>
+    </form>
+    <div id="reporteIncidentes" class="mt-4"></div>
+  </section>
+
+  <button id="descargarIncidentes">Descargar PDF</button>
+
+  <!-- Mantenimientos -->
+  <section class="mb-8">
+    <h2 class="text-xl font-bold mb-2">4. Mantenimientos Vencidos o Próximos</h2>
+    <form onsubmit="cargarMantenimientos(event)" class="space-x-2">
+      <input type="date" id="mantenimientoInicio" required>
+      <input type="date" id="mantenimientoFin" required>
+      <button type="submit" class="bg-yellow-600 px-4 py-2 rounded">Generar</button>
+    </form>
+    <div id="reporteMantenimientos" class="mt-4"></div>
+  </section>
+
+    <button id="descargarMantenimientos">Descargar PDF</button>
       </div>
     </main>
   </div>
 
-  <script src="../js/dashboardAdmin.js"></script>
+  <script src="../js/reportes.js"></script>
 </body>
 </html>

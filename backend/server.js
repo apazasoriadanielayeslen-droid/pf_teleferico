@@ -26,22 +26,30 @@ app.use(express.json());
 // RUTAS
 // =======================
 app.use('/api', authRoutes);
-app.use('/api/supervisor', supervisorRoutes);
-app.use('/api/supervisor/maint', maintRoutes);
-app.use('/api/estaciones', estacionesRouter);
 
-// Rutas de flujo de pasajeros (protegidas con token)
-app.post('/api/registrar-flujo', verificarToken, flujopaCtrl.registrarFlujo);
-app.get('/api/flujo/hoy', verificarToken, flujopaCtrl.getFlujoHoy); 
-app.get('/api/flujo/ayer', verificarToken, flujopaCtrl.getFlujoAyer);
-app.post('/api/confirmar-congestion', verificarToken, flujopaCtrl.confirmarCongestion);
-app.post('/api/ignorar-congestion', verificarToken, flujopaCtrl.ignorarCongestion);
-app.post('/api/notificaciones/solucionar', verificarToken, flujopaCtrl.solucionarNotificacion);
-app.get('/api/notificaciones/ignoradas', verificarToken, flujopaCtrl.getNotificacionesIgnoradas);
+// =======================
+// ADMIN
+// =======================
+const panelRoutes = require('./src/routes/panel');
+app.use('/panel', panelRoutes);
+const registroRoutes = require('./src/routes/registro');
+app.use('/api/registro', registroRoutes);
+const rolesRouter = require('./src/routes/roles');
+app.use('/api/roles', rolesRouter);
+const estacionesRoutes = require('./src/routes/estacionesv');
+app.use('/api/estaciones', estacionesRoutes);
+const personalRoutes = require('./src/routes/personal');
+app.use('/api', personalRoutes);
+const cabinasRoutes = require('./src/routes/cabinas');
+app.use('/api/cabinas', cabinasRoutes);
+const reportesRoutes = require("./src/routes/reportes");
+app.use('/api/reportes', reportesRoutes);
 
-app.use('/api/incidentes', incidentesRouter);
+app.use(express.json()); // ✅ parsea JSON
+app.use(express.urlencoded({ extended: true })); // ✅ parsea formularios
 
-// Ruta de prueba
+
+// Ruta de prueba / bienvenida
 app.get("/", (req, res) => {
   res.json({ mensaje: "Servidor Teleférico funcionando 🚡" });
 });

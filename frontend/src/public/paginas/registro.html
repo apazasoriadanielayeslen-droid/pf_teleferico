@@ -1,86 +1,126 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registro - Mi Teleférico</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestión de Usuarios - Mi Teleférico</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      background: linear-gradient(to bottom right, #1e3a8a, #4f46e5, #7c3aed);
-    }
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center px-4">
+<body class="min-h-screen text-white">
 
-  <div class="w-full max-w-lg bg-white/10 backdrop-blur-xl p-8 rounded-2xl border border-white/20 shadow-2xl">
+  <div class="flex min-h-screen">
 
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-white">Registro de Usuario</h1>
-      <p class="text-gray-300 mt-2">Sistema de Gestión - Mi Teleférico</p>
-    </div>
-
-    <div id="errorMsg" class="hidden bg-red-900/60 border border-red-600 text-red-100 px-4 py-3 rounded-lg mb-6 text-center"></div>
-    <div id="successMsg" class="hidden bg-green-900/60 border border-green-600 text-green-100 px-4 py-3 rounded-lg mb-6 text-center"></div>
-
-    <form id="registerForm" class="space-y-5">
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div>
-          <label class="block text-sm font-medium text-gray-200 mb-1">Nombres *</label>
-          <input id="nombres" type="text" required class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-indigo-400">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-200 mb-1">Apellido Paterno *</label>
-          <input id="apellido1" type="text" required class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-indigo-400">
+    <!-- Menú lateral -->
+    <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
+      <div class="p-6 border-b border-teal-700/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white">MT</div>
+          <div>
+            <h1 class="text-xl font-bold">Mi Teleférico</h1>
+            <p class="text-sm text-teal-300">Panel Administrador</p>
+          </div>
         </div>
       </div>
 
-      <div>
-        <label class="block text-sm font-medium text-gray-200 mb-1">Apellido Materno</label>
-        <input id="apellido2" type="text" class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-indigo-400">
-      </div>
+      <nav class="flex-1 px-4 py-6 space-y-2">
+        <a href="dashboardAdmin.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🏠 Dashboard</a>
+        <a href="registro.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition bg-teal-800">👤 Gestión de Usuarios</a>
+        <a href="roles.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🛡️ Roles</a>
+        <a href="estaciones.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🚉 Estaciones</a>
+        <a href="cabinas.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🚠 Cabinas</a>
+        <a href="reportes.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">📊 Reportes</a>
+      </nav>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div>
-          <label class="block text-sm font-medium text-gray-200 mb-1">C.I. (ej: 1234567LP) *</label>
-          <input id="ci" type="text" required class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-indigo-400">
+      <div class="p-6 border-t border-teal-700/50 mt-auto">
+        <button id="btnLogout"
+                class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/60 hover:bg-red-800/70 rounded-lg text-red-200 hover:text-white transition">
+          🔒 Cerrar Sesión
+        </button>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="flex-1 overflow-y-auto">
+      <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
+        <div class="max-w-full px-6 py-4 flex justify-between items-center">
+          <h1 class="text-3xl font-bold mb-6">👤 Gestión de Usuarios</h1>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-200 mb-1">Teléfono</label>
-          <input id="telefono" type="tel" class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-indigo-400">
+      </header>
+
+      <div class="p-6 max-w-7xl mx-auto">
+
+        <!-- Mensajes -->
+        <div id="errorMsg" class="hidden bg-red-900/60 border border-red-600 text-red-100 px-4 py-3 rounded-lg mb-4"></div>
+        <div id="successMsg" class="hidden bg-green-900/60 border border-green-600 text-green-100 px-4 py-3 rounded-lg mb-4"></div>
+
+        <!-- Botón para mostrar formulario -->
+        <button onclick="toggleForm()" class="mb-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+          ➕ Registrar Usuario
+        </button>
+
+        <!-- Formulario oculto -->
+        <div id="formContainer" class="hidden mb-6 bg-white/10 p-4 rounded-lg">
+          <form id="registerForm" class="space-y-3">
+            <input id="nombres" type="text" placeholder="Nombres" class="w-full border px-3 py-2 rounded text-black" required>
+            <input id="apellido1" type="text" placeholder="Apellido Paterno" class="w-full border px-3 py-2 rounded text-black" required>
+            <input id="apellido2" type="text" placeholder="Apellido Materno" class="w-full border px-3 py-2 rounded text-black">
+            <input id="ci" type="text" placeholder="C.I." class="w-full border px-3 py-2 rounded text-black" required>
+            <input id="telefono" type="text" placeholder="Teléfono" class="w-full border px-3 py-2 rounded text-black">
+            <input id="correo" type="email" placeholder="Correo electrónico" class="w-full border px-3 py-2 rounded text-black" required>
+            <input id="contrasena" type="password" placeholder="Contraseña" class="w-full border px-3 py-2 rounded text-black" required minlength="6">
+            <select id="id_rol" class="w-full border px-3 py-2 rounded text-black" required></select>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Registrar</button>
+          </form>
         </div>
+
+        <!-- Tabla de usuarios -->
+        <div class="overflow-x-auto">
+          <div class="flex gap-4 mb-4">
+  <button onclick="cargarUsuarios('activos')" class="bg-green-600 text-white px-4 py-2 rounded">Activos</button>
+  <button onclick="cargarUsuarios('inactivos')" class="bg-gray-600 text-white px-4 py-2 rounded">Inactivos</button>
+</div>
+
+<table class="w-full text-left">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Correo</th>
+      <th>Rol</th>
+      <th>Estado</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody id="usuariosTable"></tbody>
+</table>
+        </div>
+
+        <!-- Modal de edición -->
+        <div id="editModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div class="bg-white text-black p-6 rounded-lg w-96">
+            <h2 class="text-xl font-bold mb-4">Editar Usuario</h2>
+            <form id="editForm" class="space-y-3">
+              <input type="hidden" id="editId">
+              <input id="editNombres" type="text" placeholder="Nombres" class="w-full border px-3 py-2 rounded">
+              <input id="editApellido1" type="text" placeholder="Apellido Paterno" class="w-full border px-3 py-2 rounded">
+              <input id="editApellido2" type="text" placeholder="Apellido Materno" class="w-full border px-3 py-2 rounded">
+              <input id="editTelefono" type="text" placeholder="Teléfono" class="w-full border px-3 py-2 rounded">
+              <select id="editEstado" class="w-full border px-3 py-2 rounded">
+                <option value="ACTIVO">ACTIVO</option>
+                <option value="INACTIVO">INACTIVO</option>
+              </select>
+              <select id="editRol" class="w-full border px-3 py-2 rounded"></select>
+              <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Guardar Cambios</button>
+              <button type="button" onclick="cerrarModal()" class="w-full bg-gray-400 text-black py-2 rounded mt-2">Cancelar</button>
+            </form>
+          </div>
+        </div>
+
       </div>
-
-      <div>
-        <label class="block text-sm font-medium text-gray-200 mb-1">Correo electrónico *</label>
-        <input id="correo" type="email" required class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-indigo-400">
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-gray-200 mb-1">Contraseña * (mínimo 6 caracteres)</label>
-        <input id="contrasena" type="password" required minlength="6" class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-indigo-400">
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-gray-200 mb-1">Rol *</label>
-        <select id="id_rol" required class="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:border-indigo-400">
-          <option value="" disabled selected>Cargando roles...</option>
-        </select>
-      </div>
-
-      <button id="btnSubmit" type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-lg transition disabled:opacity-60 flex justify-center items-center gap-3 mt-4">
-        <span id="btnText">Registrar</span>
-        <svg id="loading" class="hidden animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </button>
-
-      <p class="text-center text-gray-300 mt-6">
-        <a href="./login.html" class="text-indigo-300 hover:text-indigo-200">← Volver al inicio de sesión</a>
-      </p>
-    </form>
+    </main>
   </div>
 
   <script src="../js/registro.js"></script>
