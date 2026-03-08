@@ -8,14 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // ── Nombre de usuario en el header ──
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const nombreUsuarioSpan = document.getElementById('nombreUsuario');
   if (nombreUsuarioSpan) nombreUsuarioSpan.textContent = user.nombre || 'Operador';
 
   const ULTIMA_ESTACION_KEY = 'ultima_estacion_seleccionada';
 
-  // Elementos DOM — incidentes
   const estacionActualSpan = document.getElementById('estacionActual');
   const btnNuevo           = document.getElementById('btnNuevoIncidente');
   const modal              = document.getElementById('modalNuevoIncidente');
@@ -25,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectEstacion     = document.getElementById('selectEstacion');
   const selectCabina       = document.getElementById('selectCabina');
 
-  // Elementos DOM — campanita
   const btnNotificaciones   = document.getElementById('btnNotificaciones');
   const modalNotificaciones = document.getElementById('modalNotificaciones');
   const modalNotifContent   = document.getElementById('modalNotifContent');
@@ -35,13 +32,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let incidentesOriginales = [];
 
+  // ────────────────────────────────────────────────
+  // Helper: obtener estación seleccionada
+  // ────────────────────────────────────────────────
+  function getEstacionSeleccionada() {
+    return localStorage.getItem(ULTIMA_ESTACION_KEY) || '';
+  }
+
   // ════════════════════════════════════════════════
-  // CAMPANITA — badge + modal (CONGESTION + INCIDENTE)
+  // CAMPANITA — badge + modal filtrado por estación seleccionada
   // ════════════════════════════════════════════════
 
   async function actualizarBadge() {
     try {
-      const res = await fetch(`${API_BASE}/api/incidentes/notificaciones/todas`, {
+      // FIX: Enviar la estación seleccionada para filtrar notificaciones
+      const idEstacion = getEstacionSeleccionada();
+      const url = idEstacion
+        ? `${API_BASE}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
+        : `${API_BASE}/api/incidentes/notificaciones/todas`;
+
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error(res.status);
@@ -75,7 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
     sinPendientesModal.classList.add('hidden');
 
     try {
-      const res = await fetch(`${API_BASE}/api/incidentes/notificaciones/todas`, {
+      // FIX: Enviar la estación seleccionada para filtrar notificaciones
+      const idEstacion = getEstacionSeleccionada();
+      const url = idEstacion
+        ? `${API_BASE}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
+        : `${API_BASE}/api/incidentes/notificaciones/todas`;
+
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error(res.status);
@@ -89,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       notifs.forEach(notif => {
-        // Diferenciar visualmente CONGESTION vs INCIDENTE
         const esCongestion = notif.tipo === 'CONGESTION';
         const iconColor    = esCongestion ? 'text-orange-400' : 'text-blue-400';
         const bgColor      = esCongestion ? 'bg-red-900/40 border-red-700/40' : 'bg-blue-900/40 border-blue-700/40';
@@ -125,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Badge al cargar la página
   actualizarBadge();
 
   // ════════════════════════════════════════════════
@@ -268,7 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
       container.appendChild(card);
     });
 
-    // Listeners Ver Detalles
     document.querySelectorAll('.ver-detalles').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const d = e.target.dataset;
@@ -286,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Listeners Solucionar
     document.querySelectorAll('.resolver-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const idInc = btn.dataset.id;
@@ -306,7 +318,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.textContent = 'Resuelto ✓';
             btn.classList.remove('text-green-400');
             btn.classList.add('text-gray-400', 'cursor-not-allowed');
-            // Actualizar lista, resumen y badge
             await cargarResumenIncidentes();
             await cargarIncidentesRecientes();
             await actualizarBadge();
@@ -345,7 +356,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderizarIncidentes(filtrados);
   }
 
-  // Carga inicial
   mostrarEstacionEnHeader();
   cargarResumenIncidentes();
   cargarIncidentesRecientes();
@@ -416,6 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem(ULTIMA_ESTACION_KEY, idEst);
     actualizarEstacionHeader(selectEstacion.options[selectEstacion.selectedIndex].text.trim());
 
+    // FIX: Actualizar badge al cambiar estación en el modal
+    await actualizarBadge();
+
     try {
       const res = await fetch(`${API_BASE}/api/incidentes/cabinas?estacion=${idEst}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -423,6 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error('Error al cargar cabinas');
       const cabinas = await res.json();
 
+      selectEstacion.innerHTML.replace;
       selectCabina.innerHTML = '<option value="">-- Cabina (opcional) --</option>';
       cabinas.forEach(cab => {
         const opt = document.createElement('option');
@@ -467,7 +481,6 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(`¡Incidente reportado!\nID: ${resultado.id}`);
       cerrarModal();
 
-      // Recargar todo incluyendo badge
       await cargarResumenIncidentes();
       await cargarIncidentesRecientes();
       await actualizarBadge();
@@ -478,12 +491,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Logout
-// DESPUÉS
-document.getElementById('btnLogout')?.addEventListener('click', () => {
+  document.getElementById('btnLogout')?.addEventListener('click', () => {
     if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-        localStorage.clear();
-        window.location.href = 'login.html';
+      localStorage.clear();
+      window.location.href = 'login.html';
     }
-});
+  });
 });

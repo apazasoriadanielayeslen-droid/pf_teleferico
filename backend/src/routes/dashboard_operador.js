@@ -3,19 +3,20 @@
 const express        = require('express');
 const router         = express.Router();
 const pool           = require('../config/conexion');
-const { verificarToken } = require('../middlewares/mauth'); // ← ruta correcta de tu proyecto
+const { verificarToken } = require('../middlewares/mauth');
 
 // ────────────────────────────────────────────────
 // GET /api/dashboard/notificaciones
-// Devuelve las notificaciones de congestión PENDIENTES
-// del operador logueado (misma lógica que /api/notificaciones/ignoradas)
+// FIX: Filtrado por estación seleccionada (?estacion=ID)
+// Solo devuelve congestiones PENDIENTES de esa estación
 // ────────────────────────────────────────────────
 router.get('/notificaciones', verificarToken, async (req, res) => {
     const id_personal = req.user.id;
+    const { estacion } = req.query;
 
     const conn = await pool.getConnection();
     try {
-        const [rows] = await conn.execute(`
+        let query = `
             SELECT
                 n.id_notificacion,
                 n.id_incidente,
@@ -31,9 +32,18 @@ router.get('/notificaciones', verificarToken, async (req, res) => {
               AND n.tipo        = 'CONGESTION'
               AND n.leido       = FALSE
               AND n.estado      = 'PENDIENTE'
-            ORDER BY n.fecha DESC
-        `, [id_personal]);
+        `;
+        const params = [id_personal];
 
+        // FIX: Si viene estación específica, filtrar solo por esa
+        if (estacion && !isNaN(Number(estacion))) {
+            query += ` AND i.id_estacion = ?`;
+            params.push(Number(estacion));
+        }
+
+        query += ` ORDER BY n.fecha DESC`;
+
+        const [rows] = await conn.execute(query, params);
         res.json(rows);
     } catch (err) {
         console.error("Error notificaciones dashboard:", err);

@@ -30,15 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const cerrarModal               = document.getElementById('cerrarModal');
     const notifBadge                = document.getElementById('notifBadge');
 
-    const AFORO_LIVE_KEY         = 'aforo_live';
-    const ULTIMA_ESTACION_KEY    = 'ultima_estacion_seleccionada';
-    const SIMULACION_ACTIVA_KEY  = 'simulacionActiva';
-    const SIMULACION_ESTACION_KEY= 'simulacionEstacionId';
+    const AFORO_LIVE_KEY          = 'aforo_live';
+    const ULTIMA_ESTACION_KEY     = 'ultima_estacion_seleccionada';
+    const SIMULACION_ACTIVA_KEY   = 'simulacionActiva';
+    const SIMULACION_ESTACION_KEY = 'simulacionEstacionId';
 
-    let capacidadEstacionActual  = 1000;
-    let simulacionTimeout        = null;
-    let simulacionActiva         = false;
-    let tempCongestionData       = null;
+    let capacidadEstacionActual = 1000;
+    let simulacionTimeout       = null;
+    let simulacionActiva        = false;
+    let tempCongestionData      = null;
 
     // ────────────────────────────────────────────────
     // Hora actual
@@ -54,6 +54,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const nombreUsuarioSpan = document.getElementById('nombreUsuario');
     if (nombreUsuarioSpan) nombreUsuarioSpan.textContent = user.nombre || 'Operador';
+
+    // ────────────────────────────────────────────────
+    // Helper: obtener estación seleccionada
+    // ────────────────────────────────────────────────
+    function getEstacionSeleccionada() {
+        return localStorage.getItem(ULTIMA_ESTACION_KEY) || '';
+    }
 
     // ────────────────────────────────────────────────
     // Publicar aforo en localStorage
@@ -80,11 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ────────────────────────────────────────────────
-    // Cargar estaciones
+    // Cargar estaciones (solo las asignadas al usuario)
     // ────────────────────────────────────────────────
     async function cargarEstaciones() {
         try {
-            const res = await fetch(`${API_URL}/api/estaciones`, {
+            const res = await fetch(`${API_URL}/api/mis-estaciones`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error(res.status);
@@ -114,6 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 capacidadEstacionActual = Number(est?.capacidad_maxima) || 1000;
                 estacionActualSpan.textContent = est?.nombre || 'Estación seleccionada';
                 cargarHistorial(idSeleccionada);
+                // Cargar badge y notificaciones de la estación seleccionada
+                await actualizarBadge();
+                await cargarNotificacionesPendientesPagina();
             }
         } catch (err) {
             console.error("Error estaciones:", err);
@@ -122,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    estacionSelect.addEventListener('change', () => {
+    estacionSelect.addEventListener('change', async () => {
         const id = estacionSelect.value;
         if (id) {
             const selectedOpt = estacionSelect.options[estacionSelect.selectedIndex];
@@ -140,26 +150,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.removeItem(SIMULACION_ESTACION_KEY);
             }
             alertaCongestionTarjeta.classList.add('hidden');
+            // FIX: Actualizar badge y notificaciones al cambiar estación
+            await actualizarBadge();
+            await cargarNotificacionesPendientesPagina();
         } else {
             estacionActualSpan.textContent = 'Seleccione una estación';
             localStorage.removeItem(ULTIMA_ESTACION_KEY);
             historialTbody.innerHTML = '';
             alertaCongestion.classList.add('hidden');
             localStorage.removeItem(AFORO_LIVE_KEY);
+            notifBadge.classList.add('hidden');
+            ignoradasContainer.innerHTML = '';
+            sinIgnoradas.classList.remove('hidden');
         }
     });
 
     // ════════════════════════════════════════════════
-    // CAMPANITA — badge + modal (CONGESTION + INCIDENTE)
+    // CAMPANITA — badge + modal filtrado por estación seleccionada
     // ════════════════════════════════════════════════
 
     async function actualizarBadge() {
         try {
-            const res = await fetch(`${API_URL}/api/incidentes/notificaciones/todas`, {
+            // FIX: Enviar la estación seleccionada para filtrar notificaciones
+            const idEstacion = getEstacionSeleccionada();
+            const url = idEstacion
+                ? `${API_URL}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
+                : `${API_URL}/api/incidentes/notificaciones/todas`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error('Error en la respuesta del servidor');
             const notifs = await res.json();
+
             if (notifs.length > 0) {
                 notifBadge.textContent = notifs.length;
                 notifBadge.classList.remove('hidden');
@@ -188,7 +211,13 @@ document.addEventListener('DOMContentLoaded', () => {
         sinPendientesModal.classList.add('hidden');
 
         try {
-            const res = await fetch(`${API_URL}/api/incidentes/notificaciones/todas`, {
+            // FIX: Enviar la estación seleccionada para filtrar notificaciones
+            const idEstacion = getEstacionSeleccionada();
+            const url = idEstacion
+                ? `${API_URL}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
+                : `${API_URL}/api/incidentes/notificaciones/todas`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error('Error en la respuesta del servidor');
@@ -310,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const hh = h % 12 || 12;
             return `${hh < 10 ? '0' : ''}${hh}:00 ${ampm}`;
         };
-        const ultima = flujos[flujos.length - 1];
+        const ultima      = flujos[flujos.length - 1];
         const ultimaValor = Number(ultima.entrantes || 0);
         const ultimaRango = `${ultima.hora < 10 ? '0' : ''}${ultima.hora}:00 - ${(ultima.hora + 1) % 24 < 10 ? '0' : ''}${(ultima.hora + 1) % 24}:00`;
 
@@ -473,8 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ────────────────────────────────────────────────
-    // Tarjetas de congestiones ignoradas (sección inferior)
-    // Siguen usando /api/notificaciones/ignoradas (solo CONGESTION)
+    // Tarjetas de congestiones ignoradas
     // ────────────────────────────────────────────────
     function agregarNotificacionIgnorada(data) {
         sinIgnoradas.classList.add('hidden');
@@ -542,29 +570,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function cargarNotificacionesPendientesPagina() {
-        try {
-            const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) throw new Error('Error servidor');
-            const notifs = await res.json();
-            ignoradasContainer.innerHTML = '';
-            if (notifs.length === 0) { sinIgnoradas.classList.remove('hidden'); return; }
-            sinIgnoradas.classList.add('hidden');
-            notifs.forEach(notif => {
-                agregarNotificacionIgnorada({
-                    id_notificacion: notif.id_notificacion,
-                    id_incidente:    notif.id_incidente,
-                    estacion:        notif.estacion || 'Desconocida',
-                    attemptedEntrantes: parseInt(notif.mensaje.match(/\d+/)?.[0]) || 0
-                });
-            });
-        } catch (err) {
-            console.error("Error cargando tarjetas pendientes:", err);
-        }
-    }
+async function cargarNotificacionesPendientesPagina() {
+    try {
+        const idEstacion = getEstacionSeleccionada();
+        const url = idEstacion
+            ? `${API_URL}/api/notificaciones/ignoradas?estacion=${idEstacion}`
+            : `${API_URL}/api/notificaciones/ignoradas`;
 
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Error servidor');
+        const notifs = await res.json();
+        ignoradasContainer.innerHTML = '';
+        if (notifs.length === 0) { sinIgnoradas.classList.remove('hidden'); return; }
+        sinIgnoradas.classList.add('hidden');
+        notifs.forEach(notif => {
+            agregarNotificacionIgnorada({
+                id_notificacion:    notif.id_notificacion,
+                id_incidente:       notif.id_incidente,
+                estacion:           notif.estacion || 'Desconocida',
+                attemptedEntrantes: parseInt(notif.mensaje.match(/\d+/)?.[0]) || 0
+            });
+        });
+    } catch (err) {
+        console.error("Error cargando tarjetas pendientes:", err);
+    }
+}
     // ────────────────────────────────────────────────
     // Botón Iniciar/Detener Simulación
     // ────────────────────────────────────────────────
@@ -625,7 +657,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // ────────────────────────────────────────────────
     // Inicio
     // ────────────────────────────────────────────────
-    actualizarBadge();
-    cargarEstaciones();
-    cargarNotificacionesPendientesPagina();
+    cargarEstaciones(); // Badge y notificaciones se cargan dentro de cargarEstaciones
 });

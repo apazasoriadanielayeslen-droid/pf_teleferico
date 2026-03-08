@@ -15,7 +15,6 @@ const estacionesRouter = require('./src/routes/estaciones');
 const flujopaCtrl      = require('./src/controllers/flujopaController');
 const incidentesRouter = require('./src/routes/incidentes');
 const dashboardRoutes  = require('./src/routes/dashboard_operador');
-
 const { verificarToken } = require('./src/middlewares/mauth');
 
 const app  = express();
@@ -67,9 +66,9 @@ app.post('/api/confirmar-congestion',      verificarToken, flujopaCtrl.confirmar
 app.post('/api/ignorar-congestion',        verificarToken, flujopaCtrl.ignorarCongestion);
 app.post('/api/notificaciones/solucionar', verificarToken, flujopaCtrl.solucionarNotificacion);
 app.get('/api/notificaciones/ignoradas',   verificarToken, flujopaCtrl.getNotificacionesIgnoradas);
-
 app.use('/api/incidentes', incidentesRouter);
 app.use('/api/dashboard',  dashboardRoutes);
+app.use('/api/mis-estaciones', estacionesRouter);  
 
 // Ruta de prueba / bienvenida
 app.get("/", (req, res) => {

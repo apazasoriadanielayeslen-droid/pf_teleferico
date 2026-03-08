@@ -7,7 +7,6 @@ const { verificarToken } = require('../middlewares/mauth');
 
 // ════════════════════════════════════════════════
 // GET /api/incidentes/resumen
-// GET /api/incidentes/resumen?estacion=123
 // ════════════════════════════════════════════════
 router.get('/resumen', verificarToken, async (req, res) => {
   const id_personal = req.user.id_personal || req.user.id;
@@ -54,7 +53,6 @@ router.get('/resumen', verificarToken, async (req, res) => {
 
 // ════════════════════════════════════════════════
 // GET /api/incidentes/recientes
-// GET /api/incidentes/recientes?estacion=123
 // ════════════════════════════════════════════════
 router.get('/recientes', verificarToken, async (req, res) => {
   const id_personal = req.user.id_personal || req.user.id;
@@ -117,7 +115,7 @@ router.get('/estaciones/asignadas', verificarToken, async (req, res) => {
       INNER JOIN personal_estacion pe ON e.id_estacion = pe.id_estacion
       WHERE pe.id_personal = ? 
         AND pe.estado = 'ACTIVO'
-        AND e.estado   = 'ACTIVA'
+        AND e.estado  = 'ACTIVA'
       ORDER BY e.nombre
     `, [id_personal]);
     res.json(rows);
@@ -151,11 +149,7 @@ router.get('/cabinas', verificarToken, async (req, res) => {
 
 // ════════════════════════════════════════════════
 // POST /api/incidentes
-// Crea incidente y si tiene cabina → guarda en eventos_cabina
-// ════════════════════════════════════════════════
-// ════════════════════════════════════════════════
-// POST /api/incidentes
-// Crea incidente + evento_cabina (si tiene cabina) + notificación
+// FIX: Solo crea notificación si es OPERATIVO (TÉCNICO solo va a la tabla)
 // ════════════════════════════════════════════════
 router.post('/', verificarToken, async (req, res) => {
   const { titulo, tipo, nivel_criticidad, descripcion, id_estacion, id_cabina } = req.body;
@@ -167,25 +161,18 @@ router.post('/', verificarToken, async (req, res) => {
   const id_reportado_por = req.user.id_personal || req.user.id;
 
   try {
-    // 1. Insertar el incidente
     const [result] = await db.query(`
       INSERT INTO incidentes 
       (titulo, tipo, nivel_criticidad, descripcion, estado, 
        id_estacion, id_cabina, id_reportado_por, fecha_reporte)
       VALUES (?, ?, ?, ?, 'ABIERTO', ?, ?, ?, NOW())
     `, [
-      titulo.trim(),
-      tipo,
-      nivel_criticidad,
-      descripcion.trim(),
-      id_estacion || null,
-      id_cabina   || null,
-      id_reportado_por
+      titulo.trim(), tipo, nivel_criticidad, descripcion.trim(),
+      id_estacion || null, id_cabina || null, id_reportado_por
     ]);
 
     const id_incidente = result.insertId;
 
-    // 2. Si se seleccionó una cabina → registrar en eventos_cabina
     if (id_cabina) {
       await db.query(`
         INSERT INTO eventos_cabina (id_cabina, descripcion)
@@ -196,17 +183,19 @@ router.post('/', verificarToken, async (req, res) => {
       ]);
     }
 
-    // 3. Insertar notificación para el operador que lo reportó
-    await db.query(`
-      INSERT INTO notificaciones 
-      (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
-      VALUES (?, ?, ?, 'INCIDENTE', 'PENDIENTE', FALSE, ?)
-    `, [
-      id_reportado_por,
-      `Incidente ${tipo} reportado: ${titulo.trim()}`,
-      `Se registró un incidente de tipo ${tipo} con criticidad ${nivel_criticidad}. Estado: ABIERTO.`,
-      id_incidente
-    ]);
+    // FIX: Solo notificar si es OPERATIVO — los TÉCNICOS solo aparecen en la tabla
+    if (tipo === 'OPERATIVO') {
+      await db.query(`
+        INSERT INTO notificaciones 
+        (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
+        VALUES (?, ?, ?, 'INCIDENTE', 'PENDIENTE', FALSE, ?)
+      `, [
+        id_reportado_por,
+        `Incidente OPERATIVO reportado: ${titulo.trim()}`,
+        `Se registró un incidente OPERATIVO con criticidad ${nivel_criticidad}. Estado: ABIERTO.`,
+        id_incidente
+      ]);
+    }
 
     res.status(201).json({
       success: true,
@@ -219,10 +208,10 @@ router.post('/', verificarToken, async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al registrar incidente' });
   }
 });
+
 // ════════════════════════════════════════════════
 // PATCH /api/incidentes/:id/resolver
-// Solo OPERADOR puede resolver incidentes OPERATIVOS
-// También cierra la notificación asociada si existe
+// FIX: Cierra TODAS las notificaciones pendientes del incidente
 // ════════════════════════════════════════════════
 router.patch('/:id/resolver', verificarToken, async (req, res) => {
   const id_incidente = Number(req.params.id);
@@ -247,7 +236,6 @@ router.patch('/:id/resolver', verificarToken, async (req, res) => {
     if (rows[0].estado === 'RESUELTO')
       return res.status(400).json({ success: false, message: 'El incidente ya está resuelto' });
 
-    // 1. Actualizar el incidente
     await db.query(
       `UPDATE incidentes 
        SET estado = 'RESUELTO', fecha_actualizacion = NOW() 
@@ -255,11 +243,11 @@ router.patch('/:id/resolver', verificarToken, async (req, res) => {
       [id_incidente]
     );
 
-    // 2. Cerrar la notificación asociada si existe
+    // FIX: Cierra TODAS las notificaciones del incidente (CONGESTION e INCIDENTE)
     await db.query(
       `UPDATE notificaciones
        SET estado = 'RECIBIDO', leido = TRUE
-       WHERE id_incidente = ? AND tipo = 'CONGESTION' AND estado = 'PENDIENTE'`,
+       WHERE id_incidente = ? AND estado = 'PENDIENTE'`,
       [id_incidente]
     );
 
@@ -270,12 +258,37 @@ router.patch('/:id/resolver', verificarToken, async (req, res) => {
   }
 });
 
-
-
-// GET /api/notificaciones/todas — CONGESTION + INCIDENTE pendientes
+// ════════════════════════════════════════════════
+// GET /api/incidentes/notificaciones/todas
+// FIX: Filtra por estación seleccionada (?estacion=ID)
+// Solo muestra CONGESTION + INCIDENTE OPERATIVO ABIERTO
+// de la estación que el operador tiene seleccionada
+// ════════════════════════════════════════════════
 router.get('/notificaciones/todas', verificarToken, async (req, res) => {
   const id_personal = req.user.id_personal || req.user.id;
+  const { estacion } = req.query;
+
   try {
+    // Verificar estaciones asignadas al usuario
+    const [asignadas] = await db.query(`
+      SELECT id_estacion FROM personal_estacion
+      WHERE id_personal = ? AND estado = 'ACTIVO'
+    `, [id_personal]);
+
+    let idsValidas = asignadas.map(e => e.id_estacion);
+    if (idsValidas.length === 0) return res.json([]);
+
+    // Si viene estación específica y es válida, filtrar solo esa
+    let filtroEstacion = idsValidas;
+    if (estacion) {
+      const idEst = Number(estacion);
+      if (!isNaN(idEst) && idsValidas.includes(idEst)) {
+        filtroEstacion = [idEst];
+      }
+    }
+
+    const placeholders = filtroEstacion.map(() => '?').join(',');
+
     const [rows] = await db.query(`
       SELECT 
         n.id_notificacion,
@@ -292,13 +305,19 @@ router.get('/notificaciones/todas', verificarToken, async (req, res) => {
       WHERE n.id_personal = ?
         AND n.leido  = FALSE
         AND n.estado = 'PENDIENTE'
-        AND n.tipo IN ('CONGESTION', 'INCIDENTE')
+        AND i.id_estacion IN (${placeholders})
+        AND (
+          n.tipo = 'CONGESTION'
+          OR (n.tipo = 'INCIDENTE' AND i.tipo = 'OPERATIVO' AND i.estado = 'ABIERTO')
+        )
       ORDER BY n.fecha DESC
-    `, [id_personal]);
+    `, [id_personal, ...filtroEstacion]);
+
     res.json(rows);
   } catch (err) {
     console.error('Error notificaciones/todas:', err);
     res.status(500).json({ ok: false, message: 'Error al consultar notificaciones' });
   }
 });
+
 module.exports = router;

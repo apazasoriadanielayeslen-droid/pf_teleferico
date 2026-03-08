@@ -26,6 +26,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let estacionActualId        = null;
 
     // ────────────────────────────────────────────────
+    // Helper: obtener estación seleccionada
+    // ────────────────────────────────────────────────
+    function getEstacionSeleccionada() {
+        return localStorage.getItem(ULTIMA_ESTACION_KEY) || '';
+    }
+
+    // ────────────────────────────────────────────────
     // 1. Nombre del usuario
     // ────────────────────────────────────────────────
     function mostrarNombreUsuario() {
@@ -75,12 +82,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ════════════════════════════════════════════════
-    // CAMPANITA — badge + modal (CONGESTION + INCIDENTE)
+    // CAMPANITA — badge + modal filtrado por estación seleccionada
     // ════════════════════════════════════════════════
 
     async function actualizarBadge() {
         try {
-            const res = await fetch(`${API_URL}/api/incidentes/notificaciones/todas`, {
+            // FIX: Filtrar por estación seleccionada
+            const idEstacion = getEstacionSeleccionada();
+            const url = idEstacion
+                ? `${API_URL}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
+                : `${API_URL}/api/incidentes/notificaciones/todas`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error(res.status);
@@ -124,7 +137,13 @@ document.addEventListener('DOMContentLoaded', () => {
         sinPendientesModal.classList.add('hidden');
 
         try {
-            const res = await fetch(`${API_URL}/api/incidentes/notificaciones/todas`, {
+            // FIX: Filtrar por estación seleccionada
+            const idEstacion = getEstacionSeleccionada();
+            const url = idEstacion
+                ? `${API_URL}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
+                : `${API_URL}/api/incidentes/notificaciones/todas`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error(res.status);
@@ -180,14 +199,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ════════════════════════════════════════════════
-    // TARJETAS DE CONGESTIONES IGNORADAS (sección inferior)
-    // Estas siguen usando /api/notificaciones/ignoradas
-    // porque son solo congestiones con botón Solucionar
+    // TARJETAS DE CONGESTIONES IGNORADAS
+    // FIX: Filtradas por estación seleccionada
     // ════════════════════════════════════════════════
 
     async function cargarNotificacionesPagina() {
         try {
-            const res = await fetch(`${API_URL}/api/notificaciones/ignoradas`, {
+            // FIX: Filtrar tarjetas por estación seleccionada
+            const idEstacion = getEstacionSeleccionada();
+            const url = idEstacion
+                ? `${API_URL}/api/notificaciones/ignoradas?estacion=${idEstacion}`
+                : `${API_URL}/api/notificaciones/ignoradas`;
+
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error(res.status);
@@ -337,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function inicializar() {
         try {
-            const res = await fetch(`${API_URL}/api/estaciones`, {
+            const res = await fetch(`${API_URL}/api/mis-estaciones`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res.ok) throw new Error(res.status);
@@ -349,6 +373,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             capacidadEstacionActual = Number(est.capacidad_maxima) || 1000;
             estacionActualId = est.id_estacion;
+
+            // Guardar en localStorage para que badge y tarjetas usen esta estación
+            localStorage.setItem(ULTIMA_ESTACION_KEY, String(est.id_estacion));
 
             const headerEl = document.getElementById('nombreEstacionHeader');
             if (headerEl) headerEl.textContent = est.nombre;
@@ -375,6 +402,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     try { renderizarTarjetaAforo(JSON.parse(event.newValue)); } catch {}
                 }
             });
+
+            // Cargar badge y tarjetas con la estación ya guardada
+            await actualizarBadge();
+            await cargarNotificacionesPagina();
 
             pollingInterval = setInterval(async () => {
                 try {
@@ -408,9 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mostrarNombreUsuario();
     configurarLogout();
     activarEnlaceMenu();
-    inicializar();
-    actualizarBadge();
-    cargarNotificacionesPagina();
+    inicializar(); // Badge y tarjetas se cargan dentro de inicializar
 
     window.addEventListener('beforeunload', () => {
         if (pollingInterval) clearInterval(pollingInterval);
