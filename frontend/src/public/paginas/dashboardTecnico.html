@@ -28,10 +28,6 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         Pantalla Principal
       </a>
-      <a href="paginaMantenimientos.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-        Mantenimientos
-      </a>
     </nav>
 
     <div class="p-6 border-t border-teal-700/50 mt-auto">
@@ -73,15 +69,15 @@
     <div class="p-6 max-w-7xl mx-auto space-y-8">
       <!-- métricas principales -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center cursor-pointer hover:bg-white/20 transition" id="btnEnProceso">
           <p class="text-sm text-gray-300">Mantenimientos En Proceso</p>
           <p id="mantenimientosEnProceso" class="text-3xl font-bold mt-1">0</p>
         </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center cursor-pointer hover:bg-white/20 transition" id="btnPreventivos">
           <p class="text-sm text-gray-300">Mantenimientos Preventivos</p>
           <p id="mantenimientosPreventivos" class="text-3xl font-bold mt-1">0</p>
         </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center cursor-pointer hover:bg-white/20 transition" id="btnCorrectivos">
           <p class="text-sm text-gray-300">Mantenimientos Correctivos</p>
           <p id="mantenimientosCorrectivos" class="text-3xl font-bold mt-1">0</p>
         </div>

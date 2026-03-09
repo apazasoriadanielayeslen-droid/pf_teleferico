@@ -17,12 +17,12 @@ exports.getSummary = async (req, res) => {
     }
     const placeholders = ids.map(() => '?').join(',');
 
-    const [totalRow] = await pool.query(
-      `SELECT COUNT(*) AS total FROM mantenimientos WHERE id_estacion IN (${placeholders})`,
+    const [abiertosRow] = await pool.query(
+      `SELECT COUNT(*) AS total FROM incidentes WHERE estado='ABIERTO' AND id_estacion IN (${placeholders}) AND id_incidente NOT IN (SELECT id_incidente FROM mantenimientos WHERE id_incidente IS NOT NULL)`,
       ids
     );
     const [pendRow] = await pool.query(
-      `SELECT COUNT(*) AS total FROM mantenimientos WHERE estado='PENDIENTE' AND id_estacion IN (${placeholders})`,
+      `SELECT COUNT(*) AS total FROM mantenimientos WHERE estado='EN_PROCESO' AND fecha_programada > NOW() AND id_estacion IN (${placeholders})`,
       ids
     );
     const [enProcRow] = await pool.query(
@@ -45,7 +45,7 @@ exports.getSummary = async (req, res) => {
 
     // incidentes proximos en proceso (para llenar vista inicial)
     const [incProx] = await pool.query(
-      `SELECT i.id_incidente, i.titulo, i.id_estacion, e.nombre AS estacion_nombre, i.id_cabina, c.codigo AS cabina_codigo, i.tipo, i.nivel_criticidad, i.fecha_reporte
+      `SELECT i.id_incidente, i.titulo, i.descripcion, i.id_estacion, e.nombre AS estacion_nombre, i.id_cabina, c.codigo AS cabina_codigo, i.tipo, i.nivel_criticidad, i.fecha_reporte
        FROM incidentes i
        LEFT JOIN estaciones e ON e.id_estacion = i.id_estacion
        LEFT JOIN cabinas c ON c.id_cabina = i.id_cabina
@@ -57,7 +57,7 @@ exports.getSummary = async (req, res) => {
     );
 
     res.json({
-      total: totalRow[0].total,
+      abiertos: abiertosRow[0].total,
       pendientes: pendRow[0].total,
       enProceso: enProcRow[0].total,
       completadosHoy: compHoyRow[0].total,
@@ -92,22 +92,26 @@ exports.list = async (req, res) => {
                WHERE m.id_estacion IN (${placeholders})`;
     const params = [...ids];
 
-    if (estado) {
-      sql += ' AND m.estado = ?';
-      params.push(estado);
-    }
     if (search) {
-      sql += ' AND (m.descripcion LIKE ? OR e.nombre LIKE ? OR c.codigo LIKE ?)';
+      sql += ' AND (m.titulo_mantenimiento LIKE ? OR m.descripcion LIKE ? OR e.nombre LIKE ? OR c.codigo LIKE ?)';
       const term = `%${search}%`;
-      params.push(term, term, term);
-    }
-    if (from) {
-      sql += ' AND m.fecha_programada >= ?';
-      params.push(from);
-    }
-    if (to) {
-      sql += ' AND m.fecha_programada <= ?';
-      params.push(to);
+      params.push(term, term, term, term);
+    } else {
+      if (estado) {
+        sql += ' AND m.estado = ?';
+        params.push(estado);
+      }
+      if (from) {
+        sql += ' AND m.fecha_programada >= ?';
+        params.push(from);
+      }
+      if (req.query.completadosHoy === 'true') {
+        sql += ' AND m.estado = ? AND DATE(m.fecha_actualizacion) = CURDATE()';
+        params.push('FINALIZADO');
+      }
+      if (req.query.futuros === 'true') {
+        sql += ' AND m.fecha_programada > NOW()';
+      }
     }
 
     sql += ' ORDER BY m.fecha_programada DESC';
@@ -277,5 +281,55 @@ exports.getLastIncidentByCabina = async (req, res) => {
   } catch (err) {
     console.error('Error obteniendo último incidente de cabina:', err);
     res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// Obtener lista de incidentes abiertos asignados a la estacion
+exports.getOpenIncidents = async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(400).json({ message: 'Usuario no identificado' });
+
+  try {
+    const [stations] = await pool.query(
+      `SELECT id_estacion FROM personal_estacion WHERE id_personal = ? AND estado = 'ACTIVO'`,
+      [userId]
+    );
+    const ids = stations.map(s => s.id_estacion);
+    if (ids.length === 0) return res.json([]);
+    const placeholders = ids.map(() => '?').join(',');
+
+    const [rows] = await pool.query(
+      `SELECT i.id_incidente, i.titulo, i.id_estacion, e.nombre AS estacion_nombre, i.id_cabina, c.codigo AS cabina_codigo, i.tipo, i.nivel_criticidad, i.fecha_reporte, i.estado
+       FROM incidentes i
+       LEFT JOIN estaciones e ON e.id_estacion = i.id_estacion
+       LEFT JOIN cabinas c ON c.id_cabina = i.id_cabina
+       WHERE i.estado = 'ABIERTO' AND i.id_estacion IN (${placeholders})
+       AND i.id_incidente NOT IN (SELECT id_incidente FROM mantenimientos WHERE id_incidente IS NOT NULL)
+       ORDER BY i.fecha_reporte DESC`,
+      ids
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Error list open incidentes:', err);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+exports.getByCabina = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const q = `
+      SELECT m.*, CONCAT(p.nombres, ' ', p.apellido1) as tecnico_nombre
+      FROM mantenimientos m
+      LEFT JOIN personal p ON m.id_responsable = p.id_personal
+      WHERE m.id_cabina = ?
+      ORDER BY m.fecha_programada DESC
+    `;
+    const [rows] = await pool.query(q, [id]);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching cabina maint:', err);
+    res.status(500).json({ error: err.message });
   }
 };

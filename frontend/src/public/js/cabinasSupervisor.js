@@ -31,9 +31,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function configurarIconos() {
     const bell = document.getElementById('btnNotifications');
-    if (bell) {
-      bell.addEventListener('click', () => {
-        window.location.href = 'paginaIncidentes.html';
+    const dropdown = document.getElementById('notificationsDropdown');
+    if (bell && dropdown) {
+      bell.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+        if (!dropdown.classList.contains('hidden')) {
+           await cargarNotificaciones();
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
       });
     }
     const userBtn = document.getElementById('btnUser');
@@ -60,8 +70,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let cabinas = [];
 
-  async function cargarCabinas() {
+  async function cargarCabinasYUsuario() {
     try {
+      const resData = await fetch(`${API_URL}/api/supervisor/overview`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (resData.ok) {
+        const u = await resData.json();
+        mostrarNombreYRol(u.nombre, u.rol);
+      }
+      
+      cargarNotificaciones(); // fill notifications bagde at first
+
       const res = await fetch(`${API_URL}/api/supervisor/cabinas`, {
         headers: { Authorization: 'Bearer ' + token }
       });
@@ -77,22 +97,11 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (cab.estado === 'BLOQUEADA') estadoColor = 'text-black';
         else if (cab.estado === 'INACTIVA') estadoColor = 'text-red-400';
 
-        // Verificar si hay incidente o mantenimiento
-        let hasDetail = false;
-        try {
-          const incRes = await fetch(`${API_URL}/api/supervisor/maint/summary`, {
-            headers: { Authorization: 'Bearer ' + token }
-          });
-          const data = await incRes.json();
-          // Simplificar: si hay proximos, asumir que puede haber para esta cabina
-          hasDetail = data.proximos.length > 0; // Placeholder, en realidad chequear por cabina
-        } catch (err) {}
-
         div.innerHTML = `
           <div class="text-2xl mb-2">🚠</div>
           <p class="font-semibold">${cab.codigo}</p>
           <p class="text-sm ${estadoColor}">${cab.estado}</p>
-          ${hasDetail ? '<button class="mt-2 px-3 py-1 bg-teal-600 hover:bg-teal-500 rounded text-white text-sm" onclick="verDetalleCabina(' + cab.id_cabina + ')">Ver Detalle</button>' : ''}
+          <button class="mt-2 px-3 py-1 bg-teal-600 hover:bg-teal-500 rounded text-white text-sm" onclick="verDetalleCabina(${cab.id_cabina})">Ver Detalle</button>
         `;
         lista.appendChild(div);
       });
@@ -106,42 +115,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cabina) return;
     try {
       let contentHtml = '';
-      if (cabina.estado === 'MANTENIMIENTO') {
-        // Obtener último incidente de la cabina
-        const res = await fetch(`${API_URL}/api/supervisor/maint/last-incident/${cabina.codigo}`, {
-          headers: { Authorization: 'Bearer ' + token }
-        });
-        const incidente = await res.json();
-        if (incidente) {
-          contentHtml = `
-            <p><strong>Último Incidente:</strong> ${incidente.titulo}</p>
-            <p><strong>Tipo:</strong> ${incidente.tipo}</p>
-            <p><strong>Nivel:</strong> ${incidente.nivel_criticidad}</p>
-            <p><strong>Estado:</strong> ${incidente.estado}</p>
-            <p><strong>Fecha Reporte:</strong> ${new Date(incidente.fecha_reporte).toLocaleString()}</p>
-            <p><strong>Estación:</strong> ${incidente.estacion_nombre || '-'}</p>
-            <p><strong>Descripción:</strong> ${incidente.descripcion || '-'}</p>
-          `;
+      
+      const res = await fetch(`${API_URL}/api/supervisor/maint/cabina/${id}`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (res.ok) {
+        const mantenimientos = await res.json();
+        if (mantenimientos.length > 0) {
+          contentHtml = mantenimientos.map(m => `
+            <div class="mb-4 border-b pb-2 border-gray-200">
+              <p><strong><span class="text-lg">${m.tipo === 'PREVENTIVO' ? '📅' : '🛠️'}</span> Tarea:</strong> ${m.titulo_mantenimiento}</p>
+              <p><strong>Tipo:</strong> ${m.tipo}</p>
+              <p><strong>Estado:</strong> ${m.estado}</p>
+              <p><strong>Fecha Programada:</strong> ${m.fecha_programada ? new Date(m.fecha_programada).toLocaleString() : '-'}</p>
+              <p><strong>Descripción:</strong> ${m.descripcion || 'Sin descripción.'}</p>
+              <p><strong>Técnico Responsable:</strong> ${m.tecnico_nombre || 'No asignado'}</p>
+            </div>
+          `).join('');
         } else {
-          contentHtml = '<p>No hay incidentes registrados para esta cabina.</p>';
+          contentHtml = '<p class="text-gray-500">No hay mantenimientos registrados para esta cabina.</p>';
         }
       } else {
-        // Para otras estados, mostrar incidentes activos
-        const res = await fetch(`${API_URL}/api/supervisor/overview`, {
-          headers: { Authorization: 'Bearer ' + token }
-        });
-        const data = await res.json();
-        const incidentes = data.recientes.filter(i => i.id_cabina == id || (i.id_estacion == cabina.id_estacion && !i.id_cabina));
-        if (incidentes.length > 0) {
-          contentHtml = incidentes.map(i => `
-            <p><strong>Incidente:</strong> ${i.titulo}</p>
-            <p><strong>Estado:</strong> ${i.estado}</p>
-            <p><strong>Fecha:</strong> ${new Date(i.fecha_reporte).toLocaleString()}</p>
-          `).join('<hr>');
-        } else {
-          contentHtml = '<p>No hay incidentes activos para esta cabina.</p>';
-        }
+        contentHtml = '<p class="text-red-500">Error obteniendo los mantenimientos.</p>';
       }
+
       const content = document.getElementById('detalleCabinaContent');
       content.innerHTML = contentHtml;
       document.getElementById('modalDetalleCabina').classList.remove('hidden');
@@ -150,6 +147,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  async function cargarNotificaciones() {
+    try {
+      const res = await fetch(`${API_URL}/api/supervisor/notifications`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const lista = document.getElementById('notificationsList');
+      if(lista){
+        lista.innerHTML = '';
+        if (data.length === 0) {
+          lista.innerHTML = '<p class="text-gray-500">No hay notificaciones nuevas.</p>';
+        } else {
+          data.forEach(notif => {
+            const div = document.createElement('div');
+            div.className = 'p-2 bg-gray-100 rounded border-l-4 border-teal-500';
+            const fecha = new Date(notif.fecha).toLocaleString();
+            div.innerHTML = `<div class="font-semibold text-sm">${notif.titulo}</div><div class="text-sm text-gray-600">${notif.mensaje}</div><div class="text-xs text-gray-400 mt-1">${fecha}</div>`;
+            lista.appendChild(div);
+          });
+          const markButton = document.createElement('button');
+          markButton.textContent = 'Marcar como leídas';
+          markButton.className = 'mt-2 px-4 py-2 bg-teal-500 text-white rounded text-sm hover:bg-teal-600 w-full';
+          markButton.addEventListener('click', async () => {
+            await fetch(`${API_URL}/api/supervisor/notifications/mark-read`, {
+              method: 'PUT',
+              headers: { Authorization: 'Bearer ' + token }
+            });
+            await cargarNotificaciones();
+          });
+          lista.appendChild(markButton);
+        }
+      }
+      const badge = document.getElementById('badgeNotifications');
+      if (badge) badge.textContent = data.length;
+    } catch (err) {
+      console.error('Error notifs:', err);
+    }
+  }
+
   document.getElementById('closeDetalleCabina').addEventListener('click', () => {
     document.getElementById('modalDetalleCabina').classList.add('hidden');
   });
@@ -157,5 +194,5 @@ document.addEventListener('DOMContentLoaded', () => {
   activarEnlaceMenu();
   configurarLogout();
   configurarIconos();
-  cargarCabinas();
+  cargarCabinasYUsuario();
 });

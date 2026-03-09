@@ -169,9 +169,9 @@ exports.getNotifications = async (req, res) => {
        FROM notificaciones n
        JOIN personal p ON p.id_personal = n.id_personal
        LEFT JOIN incidentes i ON i.id_incidente = n.id_incidente
-       WHERE n.id_personal IN (${opPlaceholders}) AND n.estado = 'PENDIENTE' AND n.leido = 0
+       WHERE (n.id_personal IN (${opPlaceholders}) OR n.id_personal = ?) AND n.estado = 'PENDIENTE' AND n.leido = 0
        ORDER BY n.fecha DESC`,
-      opIds
+      [...opIds, userId]
     );
 
     res.json(notifs);
@@ -205,8 +205,8 @@ exports.markNotificationsRead = async (req, res) => {
 
     const opPlaceholders = opIds.map(() => '?').join(',');
     await pool.query(
-      `UPDATE notificaciones SET leido = 1, estado = 'RECIBIDO' WHERE id_personal IN (${opPlaceholders}) AND estado = 'ENVIADO' AND leido = 0`,
-      opIds
+      `UPDATE notificaciones SET leido = 1, estado = 'RECIBIDO' WHERE (id_personal IN (${opPlaceholders}) OR id_personal = ?) AND estado = 'PENDIENTE' AND leido = 0`,
+      [...opIds, userId]
     );
 
     res.json({ success: true });

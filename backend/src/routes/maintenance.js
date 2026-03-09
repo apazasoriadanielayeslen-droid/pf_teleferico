@@ -11,10 +11,15 @@ router.get('/list', verificarToken, maintCtrl.list);
 router.get('/technicians', verificarToken, maintCtrl.getTechnicians);
 // buscar cabina por código
 router.get('/cabina/code/:code', verificarToken, maintCtrl.getCabinaByCode);
+// obtener mantenimientos por id de cabina
+router.get('/cabina/:id', verificarToken, maintCtrl.getByCabina);
 // detalle incidente
 router.get('/incident/:id', verificarToken, maintCtrl.getIncidentDetail);
 // último incidente de cabina por código
 router.get('/last-incident/:codigo', verificarToken, maintCtrl.getLastIncidentByCabina);
+// incidentes abiertos que no tienen mantenimiento
+router.get('/open-incidents', verificarToken, maintCtrl.getOpenIncidents);
+
 // obtener mantenimiento por id
 router.get('/:id', verificarToken, maintCtrl.getById);
 // creación

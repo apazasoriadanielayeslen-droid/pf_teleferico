@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const div = document.createElement('div');
           div.className = 'p-2 bg-gray-100 rounded border-l-4 border-teal-500';
           const fecha = new Date(notif.fecha).toLocaleString();
-          div.innerHTML = `<div class="font-semibold">${notif.nombre_personal}</div><div class="text-sm text-gray-600">${notif.mensaje}</div><div class="text-sm text-gray-600">Tipo: ${notif.tipo}</div><div class="text-sm text-gray-600">Incidente: ${notif.titulo_incidente} - ${notif.detalle_incidente}</div><div class="text-xs text-gray-400">${fecha}</div>`;
+          div.innerHTML = `<div class="font-semibold">${notif.titulo}</div><div class="text-sm text-gray-600">${notif.mensaje}</div><div class="text-sm text-gray-600">Tipo: ${notif.tipo}</div><div class="text-sm text-gray-600">Incidente: ${notif.titulo_incidente} - ${notif.detalle_incidente}</div><div class="text-xs text-gray-400">${fecha}</div>`;
           lista.appendChild(div);
         });
         // Agregar botón para marcar como leídas

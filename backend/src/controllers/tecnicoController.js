@@ -61,7 +61,7 @@ exports.getMantenimientos = async (req, res) => {
       params.push(tipo);
     }
 
-    sql += ' ORDER BY m.fecha_programada DESC';
+    sql += ' ORDER BY m.fecha_registro DESC';
 
     const [rows] = await pool.query(sql, params);
     res.json(rows);
@@ -105,7 +105,7 @@ exports.finalizarMantenimiento = async (req, res) => {
   try {
     // Verificar que el mantenimiento pertenece al técnico
     const [maint] = await pool.query(
-      'SELECT id_incidente FROM mantenimientos WHERE id_mantenimiento = ? AND id_responsable = ?',
+      'SELECT id_incidente, id_cabina FROM mantenimientos WHERE id_mantenimiento = ? AND id_responsable = ?',
       [id, userId]
     );
 
@@ -129,6 +129,14 @@ exports.finalizarMantenimiento = async (req, res) => {
       );
     }
 
+    // Actualizar estado de cabina si existe
+    if (maint[0].id_cabina) {
+      await pool.query(
+        'UPDATE cabinas SET estado = ? WHERE id_cabina = ?',
+        ['EN_SERVICIO', maint[0].id_cabina]
+      );
+    }
+
     res.json({ success: true, fechaRealizada });
   } catch (err) {
     console.error('Error finalizando mantenimiento:', err);
@@ -136,47 +144,65 @@ exports.finalizarMantenimiento = async (req, res) => {
   }
 };
 
-// Enviar notificación de finalización
+// Enviar notificación de finalización a supervisores de la estación del mantenimiento
 exports.enviarNotificacion = async (req, res) => {
   const userId = req.user?.id;
-  const { titulo, mensaje, tipo, id_incidente } = req.body;
+  const { titulo, mensaje, tipo, id_incidente, id_mantenimiento } = req.body;
 
   if (!titulo || !mensaje || !tipo) {
     return res.status(400).json({ message: 'Faltan datos obligatorios' });
   }
 
   try {
-    // Obtener id_personal del supervisor (asumiendo que hay un supervisor asignado a la estación)
-    // Para simplificar, enviar a todos los supervisores de la estación del incidente
-    let supervisorIds = [];
-    if (id_incidente) {
-      const [inc] = await pool.query('SELECT id_estacion FROM incidentes WHERE id_incidente = ?', [id_incidente]);
-      if (inc.length > 0) {
-        const [sups] = await pool.query(
-          `SELECT DISTINCT pe.id_personal FROM personal_estacion pe
-           JOIN personal p ON pe.id_personal = p.id_personal
-           WHERE pe.id_estacion = ? AND p.id_rol = (SELECT id_rol FROM roles WHERE nombre = 'SUPERVISOR')`,
-          [inc[0].id_estacion]
-        );
-        supervisorIds = sups.map(s => s.id_personal);
+    // 1. Obtener la id_estacion del mantenimiento
+    let idEstacion = null;
+    if (id_mantenimiento) {
+      const [maint] = await pool.query(
+        'SELECT id_estacion FROM mantenimientos WHERE id_mantenimiento = ?',
+        [id_mantenimiento]
+      );
+      if (maint.length > 0) {
+        idEstacion = maint[0].id_estacion;
       }
     }
 
-    // Si no hay supervisores específicos, enviar a todos los supervisores (opcional)
-    if (supervisorIds.length === 0) {
-      const [allSups] = await pool.query(
-        `SELECT id_personal FROM personal WHERE id_rol = (SELECT id_rol FROM roles WHERE nombre = 'SUPERVISOR')`
+    if (idEstacion) {
+      // Obtener nombre del técnico que envía la notificación
+      const [tecData] = await pool.query(
+        `SELECT CONCAT(nombres, ' ', apellido1) AS nombre FROM personal WHERE id_personal = ?`,
+        [userId]
       );
-      supervisorIds = allSups.map(s => s.id_personal);
-    }
+      const nombreTecnico = tecData.length > 0 ? tecData[0].nombre : 'Técnico';
 
-    // Insertar notificaciones para cada supervisor
-    for (const supId of supervisorIds) {
+      // 2. Buscar todos los supervisores asignados a esa estación
+      const [supervisores] = await pool.query(
+        `SELECT DISTINCT pe.id_personal
+         FROM personal_estacion pe
+         JOIN personal p ON p.id_personal = pe.id_personal
+         JOIN roles r ON r.id_rol = p.id_rol
+         WHERE pe.id_estacion = ? AND pe.estado = 'ACTIVO' AND r.nombre = 'SUPERVISOR'`,
+        [idEstacion]
+      );
+
+      // 3. Insertar una notificación para cada supervisor de esa estación
+      const mensajeConNombre = `De: ${nombreTecnico} — ${mensaje}`;
+      for (const sup of supervisores) {
+        await pool.query(
+          `INSERT INTO notificaciones (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
+           VALUES (?, ?, ?, ?, 'PENDIENTE', FALSE, ?)`,
+          [sup.id_personal, titulo, mensajeConNombre, tipo, id_incidente || null]
+        );
+      }
+
+      console.log(`Notificaciones enviadas a ${supervisores.length} supervisor(es) de estación ${idEstacion}`);
+    } else {
+      // Fallback: si no se pudo determinar la estación, guardar con id del técnico (comportamiento antiguo)
       await pool.query(
         `INSERT INTO notificaciones (id_personal, titulo, mensaje, tipo, estado, leido, id_incidente)
-         VALUES (?, ?, ?, ?, 'ENVIADO', 0, ?)`,
-        [supId, titulo, mensaje, tipo, id_incidente]
+         VALUES (?, ?, ?, ?, 'PENDIENTE', FALSE, ?)`,
+        [userId, titulo, mensaje, tipo, id_incidente || null]
       );
+      console.log('Notificación fallback guardada con id_personal del técnico');
     }
 
     res.status(201).json({ success: true });

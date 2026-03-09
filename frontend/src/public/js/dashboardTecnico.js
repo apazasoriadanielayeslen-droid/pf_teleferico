@@ -50,10 +50,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Event listeners para filtros
+  document.getElementById('btnEnProceso').addEventListener('click', () => {
+    cargarMantenimientos({ estado: 'EN_PROCESO' });
+  });
+  document.getElementById('btnPreventivos').addEventListener('click', () => {
+    cargarMantenimientos({ tipo: 'PREVENTIVO' });
+  });
+  document.getElementById('btnCorrectivos').addEventListener('click', () => {
+    cargarMantenimientos({ tipo: 'CORRECTIVO' });
+  });
+
   // Cargar mantenimientos asignados
-  async function cargarMantenimientos() {
+  async function cargarMantenimientos(filtros = {}) {
     try {
-      const res = await fetch(`${API_URL}/api/tecnico/mantenimientos`, {
+      const params = new URLSearchParams(filtros);
+      const res = await fetch(`${API_URL}/api/tecnico/mantenimientos?${params}`, {
         headers: { Authorization: 'Bearer ' + token }
       });
       if (!res.ok) throw new Error('Error al cargar mantenimientos');
@@ -73,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div>
               <h3 class="font-semibold text-lg">${m.estacion_nombre} <span class="text-gray-400">(${m.ubicacion})</span></h3>
               <p class="text-sm text-gray-300">${m.titulo_mantenimiento}</p>
+              <p class="text-sm text-gray-300">Cabina: ${m.cabina_codigo || '-'}</p>
               <p class="text-sm text-gray-300">Tipo: ${m.tipo}</p>
               <p class="text-sm text-gray-300">Fecha programada: ${new Date(m.fecha_programada).toLocaleString()}</p>
             </div>
@@ -116,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       detalleContent.innerHTML = `
         <p><strong>Estación:</strong> ${m.estacion_nombre} (${m.ubicacion})</p>
-        <p><strong>Cabina:</strong> ${m.cabina_codigo || 'N/A'}</p>
+        <p><strong>Cabina:</strong> ${m.cabina_codigo || '-'}</p>
         <p><strong>Título:</strong> ${m.titulo_mantenimiento}</p>
         <p><strong>Tipo:</strong> ${m.tipo}</p>
         <p><strong>Descripción:</strong> ${m.descripcion}</p>
@@ -172,9 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error('Error al cargar datos para notificación');
       const m = await res.json();
 
-      document.getElementById('notifTitulo').value = m.titulo_mantenimiento;
+      document.getElementById('notifTitulo').value = `Mantenimiento Finalizado: ${m.titulo_mantenimiento}`;
       document.getElementById('notifTecnico').value = nombreUsuario.textContent;
       document.getElementById('notifTipo').value = `Mantenimiento ${m.tipo.toLowerCase()}`;
+      document.getElementById('notifMensaje').value = `Mantenimiento realizado por ${nombreUsuario.textContent}. Detalles: `;
 
       modalNotificacion.classList.remove('hidden');
     } catch (err) {
@@ -187,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const titulo = document.getElementById('notifTitulo').value;
     const mensaje = document.getElementById('notifMensaje').value;
-    const tipo = document.getElementById('notifTipo').value;
+    const tipo = 'MANTENIMIENTO';
 
     // Obtener id_incidente del mantenimiento actual
     let idIncidente = null;
@@ -212,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'Content-Type': 'application/json',
           Authorization: 'Bearer ' + token
         },
-        body: JSON.stringify({ titulo, mensaje, tipo, id_incidente: idIncidente })
+        body: JSON.stringify({ titulo, mensaje, tipo, id_incidente: idIncidente, id_mantenimiento: currentMantenimientoId })
       });
       if (!res.ok) throw new Error('Error al enviar notificación');
 
