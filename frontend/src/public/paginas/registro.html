@@ -77,26 +77,41 @@
         </div>
 
         <!-- Tabla de usuarios -->
-        <div class="overflow-x-auto">
-          <div class="flex gap-4 mb-4">
-  <button onclick="cargarUsuarios('activos')" class="bg-green-600 text-white px-4 py-2 rounded">Activos</button>
-  <button onclick="cargarUsuarios('inactivos')" class="bg-gray-600 text-white px-4 py-2 rounded">Inactivos</button>
+        <!-- Pestañas -->
+<div class="flex border-b border-teal-600 mb-4">
+  <button id="tabActivos" onclick="cambiarEstado('ACTIVO')" 
+          class="px-4 py-2 text-white bg-teal-700 rounded-t">
+    Activos
+  </button>
+  <button id="tabInactivos" onclick="cambiarEstado('INACTIVO')" 
+          class="px-4 py-2 text-white bg-gray-600 rounded-t">
+    Inactivos
+  </button>
 </div>
 
-<table class="w-full text-left">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Nombre</th>
-      <th>Correo</th>
-      <th>Rol</th>
-      <th>Estado</th>
-      <th>Acciones</th>
-    </tr>
-  </thead>
-  <tbody id="usuariosTable"></tbody>
-</table>
-        </div>
+<!-- Contenedor con scroll SOLO para la tabla -->
+<div class="overflow-x-auto">
+  <table class="min-w-full bg-white/10 backdrop-blur-xl rounded-lg shadow-md">
+    <thead>
+      <tr class="bg-teal-800 text-white">
+        <th class="py-2 px-4">N°</th>
+        <th class="py-2 px-4">Nombre Completo</th>
+        <th class="py-2 px-4">CI</th>
+        <th class="py-2 px-4">Rol</th>
+        <th class="py-2 px-4">Correo</th>
+        <th class="py-2 px-4">Teléfono</th>
+        <th class="py-2 px-4">Fecha Contratación</th>
+        <th class="py-2 px-4">Fecha Registro</th>
+        <th class="py-2 px-4">Fecha Actualización</th>
+        <th class="py-2 px-4">Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tablaUsuariosBody"></tbody>
+  </table>
+</div>
+
+<!-- Paginación debajo de la tabla -->
+<div id="pagination" class="flex justify-center mt-4"></div>
 
         <!-- Modal de edición -->
         <div id="editModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center">

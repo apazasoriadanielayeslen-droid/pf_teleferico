@@ -60,36 +60,72 @@ exports.register = async (req, res) => {
   }
 };
 
-// GET /api/registro/activos
+// GET /api/registro/activos?page=1&limit=5
 exports.getUsuariosActivos = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const offset = (page - 1) * limit;
+
     const [usuarios] = await pool.query(`
-      SELECT p.id_personal, p.nombres, p.apellido1, p.apellido2, p.ci, p.correo, p.telefono,
-             r.nombre AS rol, r.id_rol, p.estado
-      FROM personal p
-      JOIN roles r ON p.id_rol = r.id_rol
-      WHERE p.estado = 'ACTIVO'
+      SELECT p.id_personal,
+       p.nombres,
+       p.apellido1,
+       p.apellido2,
+       CONCAT(p.nombres, ' ', p.apellido1, ' ', IFNULL(p.apellido2,'')) AS nombre_completo,
+       p.ci,
+       r.nombre AS rol,
+       p.id_rol,
+       p.correo,
+       p.telefono,
+       DATE_FORMAT(p.fecha_contratacion, '%Y-%m-%d') AS fecha_contratacion,
+       DATE_FORMAT(p.fecha_registro, '%Y-%m-%d %H:%i:%s') AS fecha_registro,
+       DATE_FORMAT(p.fecha_actualizacion, '%Y-%m-%d %H:%i:%s') AS fecha_actualizacion,
+       p.estado
+FROM personal p
+JOIN roles r ON p.id_rol = r.id_rol
+WHERE p.estado = 'ACTIVO'
       ORDER BY p.id_personal DESC
-    `);
-    res.json(usuarios);
+      LIMIT ? OFFSET ?
+    `, [limit, offset]);
+
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM personal WHERE estado='ACTIVO'`);
+
+    res.json({ usuarios, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al obtener usuarios activos' });
   }
 };
 
-// GET /api/registro/inactivos
+// GET /api/registro/inactivos?page=1&limit=5
 exports.getUsuariosInactivos = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const offset = (page - 1) * limit;
+
     const [usuarios] = await pool.query(`
-      SELECT p.id_personal, p.nombres, p.apellido1, p.apellido2, p.ci, p.correo, p.telefono,
-             r.nombre AS rol, r.id_rol, p.estado
+      SELECT p.id_personal,
+             CONCAT(p.nombres, ' ', p.apellido1, ' ', IFNULL(p.apellido2,'')) AS nombre_completo,
+             p.ci,
+             r.nombre AS rol,
+             p.correo,
+             p.telefono,
+             DATE_FORMAT(p.fecha_contratacion, '%Y-%m-%d') AS fecha_contratacion,
+             DATE_FORMAT(p.fecha_registro, '%Y-%m-%d %H:%i:%s') AS fecha_registro,
+             DATE_FORMAT(p.fecha_actualizacion, '%Y-%m-%d %H:%i:%s') AS fecha_actualizacion,
+             p.estado
       FROM personal p
       JOIN roles r ON p.id_rol = r.id_rol
       WHERE p.estado = 'INACTIVO'
       ORDER BY p.id_personal DESC
-    `);
-    res.json(usuarios);
+      LIMIT ? OFFSET ?
+    `, [limit, offset]);
+
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM personal WHERE estado='INACTIVO'`);
+
+    res.json({ usuarios, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al obtener usuarios inactivos' });
