@@ -32,28 +32,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let incidentesOriginales = [];
 
-  // ────────────────────────────────────────────────
-  // Helper: obtener estación seleccionada
-  // ────────────────────────────────────────────────
   function getEstacionSeleccionada() {
     return localStorage.getItem(ULTIMA_ESTACION_KEY) || '';
   }
 
-  // ════════════════════════════════════════════════
-  // CAMPANITA — badge + modal filtrado por estación seleccionada
-  // ════════════════════════════════════════════════
+  // ════════════════════════════════════════
+  // CAMPANITA
+  // ════════════════════════════════════════
 
   async function actualizarBadge() {
     try {
-      // FIX: Enviar la estación seleccionada para filtrar notificaciones
       const idEstacion = getEstacionSeleccionada();
       const url = idEstacion
         ? `${API_BASE}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
         : `${API_BASE}/api/incidentes/notificaciones/todas`;
 
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) throw new Error(res.status);
       const notifs = await res.json();
 
@@ -85,15 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
     sinPendientesModal.classList.add('hidden');
 
     try {
-      // FIX: Enviar la estación seleccionada para filtrar notificaciones
       const idEstacion = getEstacionSeleccionada();
       const url = idEstacion
         ? `${API_BASE}/api/incidentes/notificaciones/todas?estacion=${idEstacion}`
         : `${API_BASE}/api/incidentes/notificaciones/todas`;
 
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) throw new Error(res.status);
       const notifs = await res.json();
 
@@ -142,9 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   actualizarBadge();
 
-  // ════════════════════════════════════════════════
+  // ════════════════════════════════════════
   // INCIDENTES
-  // ════════════════════════════════════════════════
+  // ════════════════════════════════════════
 
   function actualizarEstacionHeader(nombre = 'Sin estación seleccionada') {
     if (estacionActualSpan) estacionActualSpan.textContent = nombre;
@@ -195,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function cargarIncidentesRecientes() {
     const container = document.getElementById('incidentesRecientes');
-    container.innerHTML = '<p class="text-center text-gray-400">Cargando incidentes recientes...</p>';
+    container.innerHTML = '<p class="text-center text-gray-400 py-10">Cargando incidentes recientes...</p>';
     try {
       const id_estacion = getEstacionIdActual();
       let url = `${API_BASE}/api/incidentes/recientes`;
@@ -208,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
       filtrarIncidentes();
     } catch (err) {
       console.error('Error incidentes recientes:', err);
-      container.innerHTML = '<p class="text-red-400 text-center">Error al cargar incidentes recientes</p>';
+      container.innerHTML = '<p class="text-red-400 text-center py-10">Error al cargar incidentes recientes</p>';
     }
   }
 
@@ -217,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     container.innerHTML = '';
 
     if (incidentes.length === 0) {
-      container.innerHTML = '<p class="text-center text-gray-400">No hay incidentes que coincidan con los filtros.</p>';
+      container.innerHTML = '<p class="text-center text-gray-400 py-10">No hay incidentes que coincidan con los filtros.</p>';
       return;
     }
 
@@ -225,55 +216,81 @@ document.addEventListener('DOMContentLoaded', () => {
     const rolUsuario = userLocal.rol_nombre || '';
 
     incidentes.forEach(inc => {
-      const severidadColor = { 'BAJO': 'blue', 'MEDIO': 'yellow', 'ALTO': 'orange', 'CRITICO': 'red' }[inc.nivel_criticidad] || 'gray';
-      const estadoColor    = { 'ABIERTO': 'yellow', 'EN_PROCESO': 'orange' }[inc.estado] || 'gray';
-      const esOperativo    = inc.tipo === 'OPERATIVO';
-      const puedeResolver  = rolUsuario === 'OPERADOR' && esOperativo;
+      const esOperativo   = inc.tipo === 'OPERATIVO';
+      const puedeResolver = rolUsuario === 'OPERADOR' && esOperativo;
 
       let accionHTML = '';
       if (puedeResolver) {
         accionHTML = `
-          <button class="resolver-btn text-green-400 hover:text-green-300 font-medium"
+          <button class="resolver-btn flex items-center gap-1.5 text-sm text-green-400 hover:text-green-300 font-medium transition"
                   data-id="${inc.id_incidente}">
-            ✔ Solucionar
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            Solucionar
           </button>`;
       } else if (inc.tipo === 'TECNICO') {
         accionHTML = `
-          <span class="text-gray-400 text-xs italic">
-            🔧 Solo personal técnico puede resolver este incidente
+          <span class="flex items-center gap-1.5 text-xs text-gray-500 italic">
+            🔧 Solo personal técnico
           </span>`;
       }
 
+      // Badge classes
+      const sevClass   = `badge badge-${inc.nivel_criticidad}`;
+      const estadoClass = `badge badge-${inc.estado}`;
+      const tipoClass   = `badge badge-${inc.tipo}`;
+
       const card = document.createElement('div');
-      card.className = `bg-white/5 border border-${severidadColor}-600/40 rounded-xl p-5 hover:bg-white/10 transition`;
+      card.className = `inc-card sev-${inc.nivel_criticidad} bg-white/5 border border-white/8 rounded-xl p-5 hover:bg-white/8 transition pl-7`;
       card.innerHTML = `
-        <div class="flex justify-between items-start">
-          <div>
-            <div class="flex items-center gap-3">
-              <span class="text-${severidadColor}-400 text-xl">⚠</span>
-              <h3 class="font-semibold">${inc.titulo} #INC${String(inc.id_incidente).padStart(3, '0')}</h3>
+        <div class="flex justify-between items-start gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <span class="mono text-xs text-white/30">#INC${String(inc.id_incidente).padStart(3,'0')}</span>
+              <span class="${sevClass}">${inc.nivel_criticidad}</span>
+              <span class="${estadoClass}">${inc.estado.replace('_',' ')}</span>
+              <span class="${tipoClass}">${inc.tipo}</span>
             </div>
-            <p class="text-sm text-gray-400 mt-1">
-              ${inc.estacion || 'Sin estación'} • ${new Date(inc.fecha_reporte).toLocaleString('es-BO')} • ${inc.reportado_por || 'Desconocido'}
+            <h3 class="font-semibold text-white leading-snug truncate">${inc.titulo}</h3>
+            <p class="text-xs text-gray-400 mt-1.5 flex items-center gap-3 flex-wrap">
+              <span class="flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                </svg>
+                ${inc.estacion || 'Sin estación'}
+              </span>
+              <span class="flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                ${inc.reportado_por || 'Desconocido'}
+              </span>
+              <span class="flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                ${new Date(inc.fecha_reporte).toLocaleString('es-BO', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+              </span>
             </p>
           </div>
-          <div class="text-right">
-            <span class="px-3 py-1 bg-${estadoColor}-800/50 text-${estadoColor}-300 rounded-full text-sm">${inc.estado}</span>
-            <p class="text-xs text-gray-400 mt-2">${inc.nivel_criticidad}</p>
-            <p class="text-xs mt-1 ${esOperativo ? 'text-teal-400' : 'text-orange-400'}">${inc.tipo}</p>
-          </div>
         </div>
-        <div class="mt-3 flex items-center gap-4 text-sm">
-          <button class="text-teal-300 hover:text-teal-200 ver-detalles"
-                  data-id="${inc.id_incidente}"
-                  data-titulo="${inc.titulo.replace(/"/g, '&quot;')}"
-                  data-descripcion="${inc.descripcion.replace(/"/g, '&quot;')}"
-                  data-estado="${inc.estado}"
-                  data-nivel="${inc.nivel_criticidad}"
-                  data-tipo="${inc.tipo}"
-                  data-fecha="${inc.fecha_reporte}"
-                  data-estacion="${inc.estacion || 'N/A'}"
-                  data-reportado="${inc.reportado_por || 'Desconocido'}">
+
+        <div class="mt-3 pt-3 border-t border-white/6 flex items-center gap-5 text-sm">
+          <button class="ver-detalles flex items-center gap-1.5 text-teal-400 hover:text-teal-300 font-medium transition"
+            data-id="${inc.id_incidente}"
+            data-titulo="${(inc.titulo||'').replace(/"/g,'&quot;')}"
+            data-descripcion="${(inc.descripcion||'').replace(/"/g,'&quot;')}"
+            data-estado="${inc.estado}"
+            data-nivel="${inc.nivel_criticidad}"
+            data-tipo="${inc.tipo}"
+            data-fecha="${inc.fecha_reporte}"
+            data-estacion="${inc.estacion || 'N/A'}"
+            data-reportado="${inc.reportado_por || 'Desconocido'}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
             Ver Detalles
           </button>
           ${accionHTML}
@@ -282,30 +299,34 @@ document.addEventListener('DOMContentLoaded', () => {
       container.appendChild(card);
     });
 
+    // ── Ver Detalles → abre modal en lugar de alert ──
     document.querySelectorAll('.ver-detalles').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const d = e.target.dataset;
-        alert(
-          `INCIDENTE #${d.id}\n\n` +
-          `Título: ${d.titulo}\n` +
-          `Descripción: ${d.descripcion}\n\n` +
-          `Tipo: ${d.tipo}\n` +
-          `Estado: ${d.estado}\n` +
-          `Nivel: ${d.nivel}\n` +
-          `Estación: ${d.estacion}\n` +
-          `Reportado por: ${d.reportado}\n` +
-          `Fecha: ${new Date(d.fecha).toLocaleString('es-BO')}`
-        );
+        const d = e.currentTarget.dataset;
+        if (typeof window.abrirModalDetalles === 'function') {
+          window.abrirModalDetalles({
+            id:          d.id,
+            titulo:      d.titulo,
+            descripcion: d.descripcion,
+            estado:      d.estado,
+            nivel:       d.nivel,
+            tipo:        d.tipo,
+            fecha:       d.fecha,
+            estacion:    d.estacion,
+            reportado:   d.reportado,
+          });
+        }
       });
     });
 
+    // ── Resolver ──
     document.querySelectorAll('.resolver-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const idInc = btn.dataset.id;
         if (!confirm('¿Confirmas que este incidente operativo ha sido resuelto?')) return;
 
         btn.disabled = true;
-        btn.textContent = 'Resolviendo...';
+        btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Resolviendo...';
 
         try {
           const res = await fetch(`${API_BASE}/api/incidentes/${idInc}/resolver`, {
@@ -315,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const result = await res.json();
 
           if (res.ok) {
-            btn.textContent = 'Resuelto ✓';
+            btn.innerHTML = '✓ Resuelto';
             btn.classList.remove('text-green-400');
             btn.classList.add('text-gray-400', 'cursor-not-allowed');
             await cargarResumenIncidentes();
@@ -324,13 +345,13 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             alert(result.message || 'Error al resolver');
             btn.disabled = false;
-            btn.textContent = '✔ Solucionar';
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> Solucionar';
           }
         } catch (err) {
           console.error('Error:', err);
           alert('Error de conexión');
           btn.disabled = false;
-          btn.textContent = '✔ Solucionar';
+          btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> Solucionar';
         }
       });
     });
@@ -425,8 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     localStorage.setItem(ULTIMA_ESTACION_KEY, idEst);
     actualizarEstacionHeader(selectEstacion.options[selectEstacion.selectedIndex].text.trim());
-
-    // FIX: Actualizar badge al cambiar estación en el modal
     await actualizarBadge();
 
     try {
@@ -436,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error('Error al cargar cabinas');
       const cabinas = await res.json();
 
-      selectEstacion.innerHTML.replace;
       selectCabina.innerHTML = '<option value="">-- Cabina (opcional) --</option>';
       cabinas.forEach(cab => {
         const opt = document.createElement('option');

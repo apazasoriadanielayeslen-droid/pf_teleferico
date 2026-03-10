@@ -285,7 +285,6 @@ const getFlujoAyer = async (req, res) => {
     if (!id_estacion || isNaN(Number(id_estacion))) {
         return res.status(400).json({ ok: false, message: "id_estacion requerido" });
     }
-
     const conn = await pool.getConnection();
     try {
         const [rows] = await conn.execute(`

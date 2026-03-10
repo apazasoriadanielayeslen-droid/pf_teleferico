@@ -97,7 +97,6 @@ async function verificarConexion() {
         console.error("❌ Error de conexión a MySQL:", error.message);
     }
 }
-
 // =======================
 // INICIAR SERVIDOR
 // =======================
@@ -114,5 +113,5 @@ app.listen(PORT, async () => {
         ? `open "${loginPath}"`
         : `xdg-open "${loginPath}"`;
 
-    
+    exec(comando);
 });
