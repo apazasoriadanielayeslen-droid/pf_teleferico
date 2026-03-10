@@ -47,9 +47,6 @@ app.use('/api/registro', registroRoutes);
 const rolesRouter = require('./src/routes/roles');
 app.use('/api/roles', rolesRouter);
 
-const estacionesRoutes = require('./src/routes/estacionesv');
-app.use('/api/estaciones', estacionesRoutes);
-
 const personalRoutes = require('./src/routes/personal');
 app.use('/api', personalRoutes);
 
@@ -58,6 +55,9 @@ app.use('/api/cabinas', cabinasRoutes);
 
 const reportesRoutes = require("./src/routes/reportes");
 app.use('/api/reportes', reportesRoutes);
+
+const telestacionesRoutes = require('./src/routes/telestaciones');
+app.use('/api/telestaciones', telestacionesRoutes);
 
 // =======================
 // FLUJO DE PASAJEROS

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Telestaciones - Mi Teleférico</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+  </style>
+</head>
+<body class="min-h-screen text-white">
+
+  <div class="flex min-h-screen">
+
+    <!-- Menú lateral -->
+    <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
+      <div class="p-6 border-b border-teal-700/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white">MT</div>
+          <div>
+            <h1 class="text-xl font-bold">Mi Teleférico</h1>
+            <p class="text-sm text-teal-300">Panel Administrador</p>
+          </div>
+        </div>
+      </div>
+
+      <nav class="flex-1 px-4 py-6 space-y-2">
+        <a href="dashboardAdmin.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🏠 Dashboard</a>
+        <a href="registro.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">👤 Gestión de Usuarios</a>
+        <a href="roles.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🛡️ Roles</a>
+        <a href="telestaciones.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition bg-teal-800">🚉 Estaciones Teleférico</a>
+        <a href="cabinas.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">🚠 Cabinas</a>
+        <a href="reportes.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition">📊 Reportes</a>
+      </nav>
+
+      <div class="p-6 border-t border-teal-700/50 mt-auto">
+        <button id="btnLogout"
+                class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/60 hover:bg-red-800/70 rounded-lg text-red-200 hover:text-white transition">
+          🔒 Cerrar Sesión
+        </button>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="flex-1 overflow-y-auto">
+      <!-- Header superior -->
+      <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
+        <div class="max-w-full px-6 py-4 flex justify-between items-center">
+          <h1 class="text-3xl font-bold mb-6">🚉 Gestión de Estaciones Teleférico</h1>
+        </div>
+      </header>
+
+      <!-- Contenido -->
+      <div class="p-6 max-w-7xl mx-auto">
+
+        <!-- Botón para mostrar formulario -->
+        <button onclick="toggleForm()" class="mb-6 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition transform hover:scale-105">
+          ➕ Nueva Estación
+        </button>
+
+        <!-- Formulario oculto -->
+        <div id="formContainer" class="hidden mb-6 bg-white/10 p-6 rounded-lg border border-white/20">
+          <h2 class="text-2xl font-bold mb-6">➕ Nueva Estación</h2>
+          <form id="formTelestacion" class="space-y-4" onsubmit="event.preventDefault(); crearTelestacion();">
+            
+            <!-- Información básica -->
+            <div class="bg-white/5 p-4 rounded">
+              <h3 class="text-lg font-semibold mb-4">Información Básica</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <input id="nombre" type="text" placeholder="Nombre" class="w-full border border-white/30 px-3 py-2 rounded text-black" required>
+                <input id="ubicacion" type="text" placeholder="Ubicación" class="w-full border border-white/30 px-3 py-2 rounded text-black" required>
+              </div>
+              <div class="grid grid-cols-2 gap-4 mt-4">
+                <input id="capacidad" type="number" placeholder="Capacidad máxima" class="w-full border border-white/30 px-3 py-2 rounded text-black" required>
+                <select id="estado" class="w-full border border-white/30 px-3 py-2 rounded text-black">
+                  <option value="">-- Selecciona Estado --</option>
+                  <option value="ACTIVA">ACTIVA</option>
+                  <option value="INACTIVA">INACTIVA</option>
+                  <option value="MANTENIMIENTO">MANTENIMIENTO</option>
+                  <option value="BLOQUEADA">BLOQUEADA</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Horarios -->
+            <div class="bg-white/5 p-4 rounded">
+              <h3 class="text-lg font-semibold mb-4">Horarios</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm mb-2">Hora de Apertura</label>
+                  <input id="hora_apertura" type="time" class="w-full border border-white/30 px-3 py-2 rounded text-black" required>
+                </div>
+                <div>
+                  <label class="block text-sm mb-2">Hora de Cierre</label>
+                  <input id="hora_cierre" type="time" class="w-full border border-white/30 px-3 py-2 rounded text-black" required>
+                </div>
+              </div>
+            </div>
+
+            <!-- Asignación de supervisores -->
+            <div class="bg-white/5 p-4 rounded">
+              <h3 class="text-lg font-semibold mb-4">Encargados (Supervisores)</h3>
+              <div class="flex gap-2 mb-4">
+                <select id="id_encargado" class="flex-1 border border-white/30 px-3 py-2 rounded text-black"></select>
+                <select id="turno" class="w-40 border border-white/30 px-3 py-2 rounded text-black">
+                  <option value="">-- Turno --</option>
+                  <option value="MAÑANA">MAÑANA</option>
+                  <option value="TARDE">TARDE</option>
+                  <option value="NOCHE">NOCHE</option>
+                </select>
+              </div>
+              <button type="button" onclick="agregarEncargado()"  
+                class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition mb-4">
+                ➕ Agregar
+              </button>
+              <div id="listaEncargados" class="space-y-2"></div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="flex gap-2">
+              <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-semibold">
+                Crear Estación
+              </button>
+              <button type="button" onclick="toggleForm()" class="flex-1 bg-gray-600 text-white py-2 rounded hover:bg-gray-700 transition">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Tabla -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full bg-white/10 backdrop-blur-xl rounded-lg shadow-md overflow-hidden">
+            <thead>
+              <tr class="bg-teal-800 text-white">
+                <th class="py-3 px-4 text-left font-semibold">N°</th>
+                <th class="py-3 px-4 text-left font-semibold">Nombre</th>
+                <th class="py-3 px-4 text-left font-semibold">Ubicación</th>
+                <th class="py-3 px-4 text-left font-semibold">Capacidad</th>
+                <th class="py-3 px-4 text-left font-semibold">Horario</th>
+                <th class="py-3 px-4 text-left font-semibold">Estado</th>
+                <th class="py-3 px-4 text-left font-semibold">Encargados</th>
+                <th class="py-3 px-4 text-center font-semibold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaEstacionesBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Modal de edición -->
+        <div id="editModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto">
+          <div class="bg-white text-black p-6 rounded-lg w-full max-w-2xl m-4">
+            <h2 class="text-xl font-bold mb-6">✏️ Editar Estación</h2>
+            <form id="editForm" class="space-y-4">
+              <input type="hidden" id="editId">
+
+              <!-- Información básica -->
+              <div class="bg-gray-100 p-4 rounded">
+                <h3 class="text-lg font-semibold mb-4">Información Básica</h3>
+                <div class="grid grid-cols-2 gap-4">
+                  <input id="editNombre" type="text" placeholder="Nombre" 
+                         class="w-full border px-3 py-2 rounded" required>
+                  <input id="editUbicacion" type="text" placeholder="Ubicación" 
+                         class="w-full border px-3 py-2 rounded" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                  <input id="editCapacidad" type="number" placeholder="Capacidad máxima" 
+                         class="w-full border px-3 py-2 rounded" required>
+                  <select id="editEstado" class="w-full border px-3 py-2 rounded">
+                    <option value="ACTIVA">ACTIVA</option>
+                    <option value="INACTIVA">INACTIVA</option>
+                    <option value="MANTENIMIENTO">MANTENIMIENTO</option>
+                    <option value="BLOQUEADA">BLOQUEADA</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Horarios -->
+              <div class="bg-gray-100 p-4 rounded">
+                <h3 class="text-lg font-semibold mb-4">Horarios</h3>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm mb-2">Hora de Apertura</label>
+                    <input id="editHoraApertura" type="time" 
+                           class="w-full border px-3 py-2 rounded" required>
+                  </div>
+                  <div>
+                    <label class="block text-sm mb-2">Hora de Cierre</label>
+                    <input id="editHoraCierre" type="time" 
+                           class="w-full border px-3 py-2 rounded" required>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Encargados -->
+              <div class="bg-gray-100 p-4 rounded">
+                <h3 class="text-lg font-semibold mb-4">Encargados (Supervisores)</h3>
+                <div class="flex gap-2 mb-4">
+                  <select id="editEncargado" class="flex-1 border px-3 py-2 rounded"></select>
+                  <select id="editTurno" class="w-40 border px-3 py-2 rounded">
+                    <option value="">-- Turno --</option>
+                    <option value="MAÑANA">MAÑANA</option>
+                    <option value="TARDE">TARDE</option>
+                    <option value="NOCHE">NOCHE</option>
+                  </select>
+                </div>
+                <button type="button" onclick="agregarEncargadoEdit()" 
+                        class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition mb-4">
+                  ➕ Agregar
+                </button>
+                <div id="listaEncargadosEdit" class="space-y-2"></div>
+              </div>
+
+              <!-- Botones de acción -->
+              <div class="flex gap-2">
+                <button type="submit" 
+                        class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-semibold">
+                  Confirmar Cambios
+                </button>
+                <button type="button" onclick="cerrarModalTel()" 
+                        class="flex-1 bg-gray-400 text-black py-2 rounded hover:bg-gray-500 transition">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Script de Telestaciones -->
+  <script src="../js/telestaciones.js"></script>
+</body>
+</html>

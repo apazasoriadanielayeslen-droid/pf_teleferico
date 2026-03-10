@@ -9,6 +9,6 @@ router.get('/overview', verificarToken, tecnicoCtrl.getOverview);
 router.get('/mantenimientos', verificarToken, tecnicoCtrl.getMantenimientos);
 router.get('/mantenimiento/:id', verificarToken, tecnicoCtrl.getMantenimientoDetalle);
 router.put('/mantenimiento/:id/finalizar', verificarToken, tecnicoCtrl.finalizarMantenimiento);
-router.post('/notificacion', verificarToken, tecnicoCtrl.enviarNotificacion);
+router.post('/notificacionG', verificarToken, tecnicoCtrl.enviarNotificacion);
 
 module.exports = router;

@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function cargarNotificaciones() {
     try {
-      const res = await fetch(`${API_URL}/api/supervisor/notifications`, {
+      const res = await fetch(`${API_URL}/api/supervisor/notificationsG`, {//este creo
         headers: { Authorization: 'Bearer ' + token }
       });
       if (!res.ok) {

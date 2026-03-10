@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/tecnico/notificacion`, {
+      const res = await fetch(`${API_URL}/api/tecnico/notificacionG`, {//ESTO CREO
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -8,7 +8,7 @@ const { verificarToken } = require('../middlewares/mauth');
 router.get('/overview', verificarToken, supervisorCtrl.getOverview);
 router.get('/stations', verificarToken, supervisorCtrl.getStations);
 router.get('/cabinas', verificarToken, supervisorCtrl.getCabinas);
-router.get('/notifications', verificarToken, supervisorCtrl.getNotifications);
+router.get('/notificationsG', verificarToken, supervisorCtrl.getNotifications);
 router.put('/notifications/mark-read', verificarToken, supervisorCtrl.markNotificationsRead);
 
 module.exports = router;
