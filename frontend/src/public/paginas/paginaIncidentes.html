@@ -5,13 +5,168 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gestión de Incidentes - Mi Teleférico</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    body { background: linear-gradient(to bottom right, #064e3b, #0f766e, #14b8a6); }
+    * { font-family: 'IBM Plex Sans', sans-serif; }
+    body { background: linear-gradient(135deg, #064e3b 0%, #0f766e 50%, #14b8a6 100%); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(94,234,212,0.3); border-radius: 999px; }
+
+    /* ── Modal backdrop blur ── */
+    .modal-backdrop {
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    /* ── Modal de detalles ── */
+    #modalDetalles {
+      animation: fadeIn 0.18s ease;
+    }
+    #modalDetallesCard {
+      animation: slideUp 0.22s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+    @keyframes slideUp { from { opacity:0; transform:translateY(28px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+
+    /* ── Inputs con focus line ── */
+    .field-input {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      padding: 11px 16px;
+      width: 100%;
+      color: #fff;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .field-input::placeholder { color: rgba(255,255,255,0.3); }
+    .field-input:focus {
+      border-color: #2dd4bf;
+      background: rgba(45,212,191,0.07);
+      box-shadow: 0 0 0 3px rgba(45,212,191,0.12);
+    }
+    /* Fix: selects necesitan fondo sólido para que las options sean legibles */
+    select.field-input {
+      background-color: #0d2e28;
+      color: #fff;
+    }
+    select.field-input:focus {
+      background-color: #0d2e28;
+    }
+    .field-input option {
+      background-color: #0d2e28;
+      color: #fff;
+    }
+    .field-input option:disabled {
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* ── Badge de nivel ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .badge-BAJO    { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-MEDIO   { background: rgba(234,179,8,0.18);  color: #fde047; border: 1px solid rgba(234,179,8,0.3);  }
+    .badge-ALTO    { background: rgba(249,115,22,0.18); color: #fdba74; border: 1px solid rgba(249,115,22,0.3); }
+    .badge-CRITICO { background: rgba(239,68,68,0.2);   color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); }
+    .badge-ABIERTO    { background: rgba(234,179,8,0.15);  color: #fde047; border: 1px solid rgba(234,179,8,0.25);  }
+    .badge-EN_PROCESO { background: rgba(249,115,22,0.15); color: #fdba74; border: 1px solid rgba(249,115,22,0.25); }
+    .badge-OPERATIVO  { background: rgba(45,212,191,0.12); color: #5eead4; border: 1px solid rgba(45,212,191,0.25); }
+    .badge-TECNICO    { background: rgba(168,85,247,0.12); color: #d8b4fe; border: 1px solid rgba(168,85,247,0.25); }
+
+    /* ── Línea de separación ── */
+    .detail-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label {
+      width: 110px;
+      flex-shrink: 0;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(94,234,212,0.7);
+      padding-top: 1px;
+    }
+    .detail-value {
+      flex: 1;
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.88);
+      line-height: 1.5;
+    }
+
+    /* ── Incident card severity left bar ── */
+    .inc-card { position: relative; overflow: hidden; }
+    .inc-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+    }
+    .inc-card.sev-BAJO::before    { background: #3b82f6; }
+    .inc-card.sev-MEDIO::before   { background: #eab308; }
+    .inc-card.sev-ALTO::before    { background: #f97316; }
+    .inc-card.sev-CRITICO::before { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.6); }
+
+    /* ── Submit button shimmer ── */
+    .btn-submit {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      border: none;
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn-submit:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+      transform: translateX(-100%);
+      transition: transform 0.5s;
+    }
+    .btn-submit:hover::after { transform: translateX(100%); }
+
+    /* ── Section divider inside form modal ── */
+    .form-section-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(94,234,212,0.6);
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(94,234,212,0.12);
+      margin-bottom: 14px;
+    }
+
+    /* ── Mono font for IDs ── */
+    .mono { font-family: 'IBM Plex Mono', monospace; }
   </style>
 </head>
 <body class="min-h-screen text-white flex">
 
-  <!-- Menú lateral -->
+  <!-- ══ MENÚ LATERAL ══ -->
   <aside class="w-64 bg-teal-950/70 backdrop-blur-md border-r border-teal-700/50 flex flex-col sticky top-0 h-screen overflow-y-auto">
     <div class="p-6 border-b border-teal-700/50">
       <div class="flex items-center gap-3">
@@ -22,26 +177,24 @@
         </div>
       </div>
     </div>
-
     <nav class="flex-1 px-4 py-6 space-y-2">
-      <a href="dashboardOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+      <a href="dashboardOperador.html" class="flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         Dashboard
       </a>
-      <a href="dashboardOperador.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+      <a href="dashboardOperador.html" class="flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
         Mi Estación
       </a>
-      <a href="paginapasajeros.html" class="menu-link flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
+      <a href="paginapasajeros.html" class="flex items-center gap-3 px-4 py-3 rounded-lg transition hover:bg-teal-800/40">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         Registrar Flujo de Pasajeros
       </a>
-      <a href="paginaIncidentes.html" class="menu-link flex items-center gap-3 px-4 py-3 bg-orange-900/40 rounded-lg font-medium transition text-orange-300">
+      <a href="paginaIncidentes.html" class="flex items-center gap-3 px-4 py-3 bg-orange-900/40 rounded-lg font-medium text-orange-300">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
         Reportar Incidente
       </a>
     </nav>
-
     <div class="p-6 border-t border-teal-700/50 mt-auto">
       <button id="btnLogout" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/60 hover:bg-red-800/70 rounded-lg text-red-200 hover:text-white transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -50,33 +203,23 @@
     </div>
   </aside>
 
-  <!-- Contenido principal -->
+  <!-- ══ CONTENIDO PRINCIPAL ══ -->
   <main class="flex-1 overflow-y-auto">
 
-    <!-- ══ HEADER CON CAMPANITA ══ -->
+    <!-- Header -->
     <header class="bg-teal-950/50 backdrop-blur-md border-b border-teal-700/40 sticky top-0 z-40">
       <div class="max-w-full px-6 py-4 flex justify-between items-center">
         <h1 class="text-2xl font-bold">
           Gestión de Incidentes —
           <span id="estacionActual" class="text-teal-300">Cargando estación...</span>
         </h1>
-
         <div class="flex items-center gap-4">
-
-          <!-- CAMPANITA con badge (misma lógica que dashboard y pasajeros) -->
-          <button id="btnNotificaciones"
-                  class="relative text-teal-200 hover:text-white cursor-pointer focus:outline-none transition">
+          <button id="btnNotificaciones" class="relative text-teal-200 hover:text-white cursor-pointer focus:outline-none transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
             </svg>
-            <span id="notifBadge"
-                  class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 hidden">
-              0
-            </span>
+            <span id="notifBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 hidden">0</span>
           </button>
-
-          <!-- Info del usuario -->
           <div class="flex items-center gap-3">
             <div class="text-right">
               <p class="font-medium">Bienvenid@, <span id="nombreUsuario" class="text-teal-300"></span></p>
@@ -90,16 +233,12 @@
 
     <div class="p-6 max-w-7xl mx-auto">
 
-      <!-- Barra de búsqueda y filtros -->
+      <!-- Barra búsqueda -->
       <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
         <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-wrap">
-          <input
-            type="text"
-            id="searchInput"
-            placeholder="Buscar por título, descripción, estación..."
-            class="w-full md:w-80 lg:w-96 bg-white/10 border border-white/20 rounded-xl px-5 py-3 focus:outline-none focus:border-teal-400 placeholder-gray-400"
-          >
-          <select id="filtroCriticidad" class="bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-teal-400 text-white min-w-[180px]">
+          <input type="text" id="searchInput" placeholder="Buscar por título, descripción, estación..."
+            class="field-input w-full md:w-80 lg:w-96">
+          <select id="filtroCriticidad" class="field-input min-w-[180px]">
             <option value="">Nivel de criticidad: Todos</option>
             <option value="BAJO">Bajo</option>
             <option value="MEDIO">Medio</option>
@@ -107,117 +246,313 @@
             <option value="CRITICO">Crítico</option>
           </select>
         </div>
-        <button id="btnNuevoIncidente" class="w-full md:w-auto bg-orange-600 hover:bg-orange-500 px-6 py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
-          <span>+ Reportar Incidente</span>
+        <button id="btnNuevoIncidente"
+          class="w-full md:w-auto btn-submit px-6 py-3 rounded-xl flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+          </svg>
+          Reportar Incidente
         </button>
       </div>
 
       <!-- Tarjetas resumen -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Total Incidentes</p>
-          <p id="totalIncidentes" class="text-3xl font-bold mt-1">0</p>
+          <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Total</p>
+          <p id="totalIncidentes" class="text-4xl font-bold mono">0</p>
         </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Abiertos</p>
-          <p id="abiertos" class="text-3xl font-bold mt-1">0</p>
+        <div class="bg-white/10 backdrop-blur-xl border border-yellow-500/20 rounded-2xl p-5 text-center">
+          <p class="text-xs font-semibold uppercase tracking-widest text-yellow-400/70 mb-2">Abiertos</p>
+          <p id="abiertos" class="text-4xl font-bold mono text-yellow-300">0</p>
         </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">En Proceso</p>
-          <p id="enProceso" class="text-3xl font-bold mt-1">0</p>
+        <div class="bg-white/10 backdrop-blur-xl border border-orange-500/20 rounded-2xl p-5 text-center">
+          <p class="text-xs font-semibold uppercase tracking-widest text-orange-400/70 mb-2">En Proceso</p>
+          <p id="enProceso" class="text-4xl font-bold mono text-orange-300">0</p>
         </div>
-        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 text-center">
-          <p class="text-sm text-gray-300">Resueltos</p>
-          <p id="resueltos" class="text-3xl font-bold mt-1">0</p>
+        <div class="bg-white/10 backdrop-blur-xl border border-green-500/20 rounded-2xl p-5 text-center">
+          <p class="text-xs font-semibold uppercase tracking-widest text-green-400/70 mb-2">Resueltos</p>
+          <p id="resueltos" class="text-4xl font-bold mono text-green-300">0</p>
         </div>
       </div>
 
-      <!-- Incidentes recientes -->
+      <!-- Lista incidentes -->
       <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
-        <h2 class="text-2xl font-bold mb-6">Incidentes Recientes (Abiertos / En Proceso)</h2>
-        <div id="incidentesRecientes" class="space-y-4 min-h-[200px]">
-          <p id="cargandoIncidentes" class="text-center text-gray-400">Cargando incidentes...</p>
-          <p id="sinIncidentes" class="text-center text-gray-400 hidden">No hay incidentes abiertos o en proceso en tus estaciones asignadas.</p>
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-3">
+          <span class="w-1.5 h-6 bg-orange-500 rounded-full inline-block"></span>
+          Incidentes Recientes — Abiertos / En Proceso
+        </h2>
+        <div id="incidentesRecientes" class="space-y-3 min-h-[200px]">
+          <p id="cargandoIncidentes" class="text-center text-gray-400 py-10">Cargando incidentes...</p>
+          <p id="sinIncidentes" class="text-center text-gray-400 hidden">No hay incidentes abiertos o en proceso.</p>
         </div>
       </div>
 
     </div>
   </main>
 
-  <!-- Modal nuevo incidente -->
-  <div id="modalNuevoIncidente" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
-    <div class="bg-teal-950/90 border border-teal-700/50 rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-      <div class="p-6 border-b border-teal-700/50 flex justify-between items-center">
-        <h2 class="text-2xl font-bold">Reportar Nuevo Incidente</h2>
-        <button id="btnCerrarModal" class="text-teal-300 hover:text-white text-2xl">×</button>
+  <!-- ══════════════════════════════════════════
+       MODAL: VER DETALLES
+  ══════════════════════════════════════════ -->
+  <div id="modalDetalles" class="fixed inset-0 modal-backdrop bg-black/60 flex items-center justify-center z-50 hidden">
+    <div id="modalDetallesCard"
+         class="bg-[#0a2420] border border-white/10 rounded-2xl w-full max-w-lg mx-4 overflow-hidden shadow-2xl">
+
+      <!-- Franja de color según criticidad -->
+      <div id="detallesFranja" class="h-[3px] w-full"></div>
+
+      <!-- Header -->
+      <div class="px-6 pt-5 pb-4 border-b border-white/8 flex justify-between items-start">
+        <div>
+          <div class="flex flex-wrap gap-2 mb-3">
+            <span id="detalleBadgeNivel"  class="badge"></span>
+            <span id="detalleBadgeEstado" class="badge"></span>
+            <span id="detalleBadgeTipo"   class="badge"></span>
+          </div>
+          <h2 id="detalleTitulo" class="text-lg font-bold text-white leading-snug"></h2>
+          <p id="detalleId" class="mono text-xs text-white/30 mt-1"></p>
+        </div>
+        <button id="btnCerrarDetalles"
+                class="text-white/30 hover:text-white transition ml-4 mt-1 shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
-      <form id="formNuevoIncidente" class="p-6 space-y-5">
+
+      <!-- Body -->
+      <div class="px-6 py-4 space-y-3 text-sm">
+
         <div>
-          <label class="block text-sm text-teal-200 mb-1">Título *</label>
-          <input type="text" name="titulo" required class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400" placeholder="Ej: Cabina 08 atascada en Estación Sur">
+          <p class="text-xs text-teal-400/60 uppercase tracking-wider mb-1">Descripción</p>
+          <p id="detalleDescripcion" class="text-white/80 leading-relaxed"></p>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <div class="border-t border-white/6 pt-3 grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm text-teal-200 mb-1">Tipo *</label>
-            <select name="tipo" required class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
-              <option value="">Seleccionar...</option>
-              <option value="OPERATIVO">Operativo</option>
-              <option value="TECNICO">Técnico</option>
-            </select>
+            <p class="text-xs text-teal-400/60 uppercase tracking-wider mb-1">Estación</p>
+            <p id="detalleEstacionText" class="text-white/85 font-medium"></p>
           </div>
           <div>
-            <label class="block text-sm text-teal-200 mb-1">Nivel de Criticidad *</label>
-            <select name="nivel_criticidad" required class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
-              <option value="">Seleccionar...</option>
-              <option value="BAJO">Bajo</option>
-              <option value="MEDIO">Medio</option>
-              <option value="ALTO">Alto</option>
-              <option value="CRITICO">Crítico</option>
-            </select>
+            <p class="text-xs text-teal-400/60 uppercase tracking-wider mb-1">Reportado por</p>
+            <p id="detalleReportado" class="text-white/85 font-medium"></p>
           </div>
         </div>
-        <div>
-          <label class="block text-sm text-teal-200 mb-1">Estación afectada</label>
-          <select name="id_estacion" id="selectEstacion" class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
-            <option value="">-- Seleccionar estación --</option>
-          </select>
+
+        <div class="border-t border-white/6 pt-3">
+          <p class="text-xs text-teal-400/60 uppercase tracking-wider mb-1">Fecha de reporte</p>
+          <p id="detalleFecha" class="text-white/85 mono"></p>
         </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-white/8 flex justify-end">
+        <button id="btnCerrarDetalles2"
+                class="px-5 py-2 rounded-lg bg-white/8 hover:bg-white/14 text-sm font-medium text-white/75 hover:text-white transition">
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       MODAL: NUEVO INCIDENTE (mejorado)
+  ══════════════════════════════════════════ -->
+  <div id="modalNuevoIncidente" class="fixed inset-0 modal-backdrop bg-black/65 flex items-center justify-center z-50 hidden">
+    <div class="bg-[#0a2420] border border-teal-800/60 rounded-2xl w-full max-w-2xl mx-4 max-h-[92vh] overflow-y-auto shadow-2xl">
+
+      <!-- Header -->
+      <div class="px-7 py-5 border-b border-white/8 flex justify-between items-center">
         <div>
-          <label class="block text-sm text-teal-200 mb-1">Cabina (opcional)</label>
-          <select name="id_cabina" id="selectCabina" disabled class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400">
-            <option value="">-- Primero selecciona estación --</option>
-          </select>
+          <h2 class="text-xl font-bold">Reportar Nuevo Incidente</h2>
+          <p class="text-xs text-teal-400/60 mt-0.5">Completa todos los campos requeridos (*)</p>
         </div>
+        <button id="btnCerrarModal"
+                class="text-white/30 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <form id="formNuevoIncidente" class="px-7 py-6 space-y-6">
+
+        <!-- Sección 1: Identificación -->
         <div>
-          <label class="block text-sm text-teal-200 mb-1">Descripción detallada *</label>
-          <textarea name="descripcion" required rows="5" class="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 focus:outline-none focus:border-teal-400" placeholder="Describe qué ocurrió..."></textarea>
+          <p class="form-section-label">Identificación del incidente</p>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-teal-200/80 mb-1.5">Título <span class="text-orange-400">*</span></label>
+              <input type="text" name="titulo" required
+                class="field-input"
+                placeholder="Ej: Cabina 08 atascada en Estación Sur">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-teal-200/80 mb-1.5">Tipo <span class="text-orange-400">*</span></label>
+                <div class="relative">
+                  <select name="tipo" required class="field-input appearance-none pr-10">
+                    <option value="">Seleccionar...</option>
+                    <option value="OPERATIVO">Operativo</option>
+                    <option value="TECNICO">Técnico</option>
+                  </select>
+                  <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-teal-200/80 mb-1.5">Nivel de Criticidad <span class="text-orange-400">*</span></label>
+                <div class="relative">
+                  <select name="nivel_criticidad" required class="field-input appearance-none pr-10">
+                    <option value="">Seleccionar...</option>
+                    <option value="BAJO">🔵 Bajo</option>
+                    <option value="MEDIO">🟡 Medio</option>
+                    <option value="ALTO">🟠 Alto</option>
+                    <option value="CRITICO">🔴 Crítico</option>
+                  </select>
+                  <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="flex justify-end gap-4 pt-4 border-t border-teal-700/30">
-          <button type="button" id="btnCancelar" class="px-6 py-3 bg-gray-700/50 hover:bg-gray-600 rounded-lg transition">Cancelar</button>
-          <button type="submit" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded-lg font-medium transition">Reportar Incidente</button>
+
+        <!-- Sección 2: Ubicación -->
+        <div>
+          <p class="form-section-label">Ubicación</p>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-teal-200/80 mb-1.5">
+                <svg class="w-3.5 h-3.5 inline mr-1 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                </svg>
+                Estación afectada
+              </label>
+              <div class="relative">
+                <select name="id_estacion" id="selectEstacion" class="field-input appearance-none pr-10">
+                  <option value="">-- Seleccionar estación --</option>
+                </select>
+                <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-teal-200/80 mb-1.5">
+                Cabina
+                <span class="text-white/30 font-normal text-xs ml-1">(opcional)</span>
+              </label>
+              <div class="relative">
+                <select name="id_cabina" id="selectCabina" disabled class="field-input appearance-none pr-10 disabled:opacity-40 disabled:cursor-not-allowed">
+                  <option value="">-- Primero selecciona estación --</option>
+                </select>
+                <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección 3: Descripción -->
+        <div>
+          <p class="form-section-label">Detalle del incidente</p>
+          <div>
+            <label class="block text-sm font-medium text-teal-200/80 mb-1.5">Descripción detallada <span class="text-orange-400">*</span></label>
+            <textarea name="descripcion" required rows="5"
+              class="field-input resize-none"
+              placeholder="Describe con claridad qué ocurrió, cuándo y qué medidas inmediatas se tomaron..."></textarea>
+          </div>
+        </div>
+
+        <!-- Footer del form -->
+        <div class="flex justify-end gap-3 pt-2 border-t border-white/8">
+          <button type="button" id="btnCancelar"
+            class="px-5 py-2.5 rounded-lg bg-white/6 hover:bg-white/12 text-sm font-medium transition">
+            Cancelar
+          </button>
+          <button type="submit" class="btn-submit px-6 py-2.5 rounded-lg text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            Reportar Incidente
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ══ MODAL DE LA CAMPANITA ══ -->
-  <div id="modalNotificaciones"
-       class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+  <!-- ══ MODAL CAMPANITA ══ -->
+  <div id="modalNotificaciones" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
     <div class="bg-teal-950/90 backdrop-blur-lg border border-teal-700/50 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-orange-400">Congestiones Ignoradas (Pendientes)</h2>
+        <h2 class="text-xl font-bold text-orange-400">Congestiones Ignoradas (Pendientes)</h2>
         <button id="cerrarModalNotif" class="text-gray-400 hover:text-white transition">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
       <div id="modalNotifContent" class="space-y-3"></div>
-      <p id="sinPendientesModal" class="text-center text-gray-400 mt-6 hidden">
-        Sin congestiones pendientes. ✅
-      </p>
+      <p id="sinPendientesModal" class="text-center text-gray-400 mt-6 hidden">Sin congestiones pendientes. ✅</p>
     </div>
   </div>
+
+  <!-- ══ JS original + nuevo modal detalles ══ -->
+  <script>
+  // ──────────────────────────────────────────────────────────────
+  // MODAL VER DETALLES — lógica de apertura/cierre y render
+  // ──────────────────────────────────────────────────────────────
+  const modalDetalles      = document.getElementById('modalDetalles');
+  const btnCerrarDetalles  = document.getElementById('btnCerrarDetalles');
+  const btnCerrarDetalles2 = document.getElementById('btnCerrarDetalles2');
+
+  function abrirModalDetalles(inc) {
+    const franjaColor = { BAJO:'#3b82f6', MEDIO:'#eab308', ALTO:'#f97316', CRITICO:'#ef4444' };
+    document.getElementById('detallesFranja').style.background = franjaColor[inc.nivel] || 'rgba(255,255,255,0.1)';
+
+    // Badges
+    const nb = document.getElementById('detalleBadgeNivel');
+    nb.className = `badge badge-${inc.nivel}`;
+    nb.textContent = inc.nivel;
+
+    const sb = document.getElementById('detalleBadgeEstado');
+    sb.className = `badge badge-${inc.estado}`;
+    sb.textContent = inc.estado.replace('_', ' ');
+
+    const tb = document.getElementById('detalleBadgeTipo');
+    tb.className = `badge badge-${inc.tipo}`;
+    tb.textContent = inc.tipo;
+
+    document.getElementById('detalleTitulo').textContent = inc.titulo;
+    document.getElementById('detalleId').textContent = `#INC${String(inc.id).padStart(3, '0')}`;
+    document.getElementById('detalleDescripcion').textContent = inc.descripcion || '—';
+    document.getElementById('detalleEstacionText').textContent = inc.estacion || 'N/A';
+    document.getElementById('detalleReportado').textContent = inc.reportado || 'Desconocido';
+
+    const fecha = new Date(inc.fecha);
+    document.getElementById('detalleFecha').textContent =
+      isNaN(fecha) ? inc.fecha : fecha.toLocaleString('es-BO', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+    modalDetalles.classList.remove('hidden');
+  }
+
+  function cerrarModalDetalles() { modalDetalles.classList.add('hidden'); }
+  btnCerrarDetalles.addEventListener('click', cerrarModalDetalles);
+  btnCerrarDetalles2.addEventListener('click', cerrarModalDetalles);
+  modalDetalles.addEventListener('click', e => { if (e.target === modalDetalles) cerrarModalDetalles(); });
+
+  // Exponer globalmente para que pagina_incidente.js pueda invocarla
+  window.abrirModalDetalles = abrirModalDetalles;
+  </script>
 
   <script src="../js/pagina_incidente.js"></script>
   <script src="../js/dashboardOperador.js"></script>

@@ -97,7 +97,6 @@ async function verificarConexion() {
         console.error("❌ Error de conexión a MySQL:", error.message);
     }
 }
-
 // =======================
 // INICIAR SERVIDOR
 // =======================
@@ -113,12 +112,6 @@ app.listen(PORT, async () => {
         : process.platform === 'darwin'
         ? `open "${loginPath}"`
         : `xdg-open "${loginPath}"`;
-exec(comando, (err) => {
-        if (err) {
-            console.error('❌ No se pudo abrir el navegador:', err.message);
-        } else {
-            console.log('🌐 Navegador abierto con login.html');
-        }
-    });
-    
+
+    exec(comando);
 });
